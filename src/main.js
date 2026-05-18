@@ -1246,6 +1246,89 @@ ipcMain.handle('open-settings-window', async () => {
   }
 });
 
+// Re-aplica la configuración guardada antes de lanzar Roblox
+// Esto asegura que aunque Roblox se haya actualizado, los ajustes se mantienen
+async function reapplyConfigBeforeLaunch(texturePath) {
+  try {
+    if (!fs.existsSync(APP_CONFIG_PATH)) return;
+    const config = JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8'));
+    log.info('Re-aplicando configuración antes de lanzar:', JSON.stringify(config));
+
+    // Re-aplicar skybox si había uno seleccionado
+    if (config.selectedSky && texturePath && fs.existsSync(texturePath)) {
+      const skyboxName = config.selectedSky;
+      const skyboxPath = path.join(SKYBOXES_PATH, skyboxName);
+      if (fs.existsSync(skyboxPath)) {
+        const texFiles = fs.readdirSync(skyboxPath).filter(f => f.endsWith('.tex'));
+        if (texFiles.length > 0) {
+          await applySkyboxToPath(skyboxPath, texFiles, texturePath);
+          await rbxStorage.applySkyboxFromTexFiles(skyboxPath);
+          log.info('Skybox re-aplicado:', skyboxName);
+        }
+      }
+    }
+
+    // Re-aplicar dark textures
+    if (config.darkOn && texturePath && fs.existsSync(texturePath)) {
+      const ruptikDarkPath = TEXTURES_PATH;
+      if (fs.existsSync(ruptikDarkPath)) {
+        const { exec } = require('child_process');
+        const items = fs.readdirSync(ruptikDarkPath);
+        for (const item of items) {
+          const src = path.join(ruptikDarkPath, item);
+          const dest = path.join(texturePath, item);
+          try {
+            await new Promise(resolve => exec(`attrib -R "${dest}" /S /D`, () => resolve()));
+            await fs.copy(src, dest, { overwrite: true });
+          } catch (e) { /* ignorar */ }
+        }
+        log.info('Dark textures re-aplicadas');
+      }
+    }
+
+    // Re-aplicar potato textures
+    if (config.potatoTexOn && texturePath && fs.existsSync(texturePath)) {
+      const potatoSrc = path.join(RESOURCES_PATH, 'textures', 'potato', 'PlatformContent', 'pc', 'textures');
+      if (fs.existsSync(potatoSrc)) {
+        const { exec } = require('child_process');
+        const files = fs.readdirSync(potatoSrc);
+        for (const file of files) {
+          const dest = path.join(texturePath, file);
+          try {
+            await new Promise(resolve => exec(`attrib -R "${dest}"`, () => resolve()));
+            await fs.copy(path.join(potatoSrc, file), dest, { overwrite: true });
+          } catch (e) { /* ignorar */ }
+        }
+        log.info('Potato textures re-aplicadas');
+      }
+    }
+
+    // Re-aplicar fuente activa
+    if (config.activeFont) {
+      const fontsDir = path.join(RESOURCES_PATH, 'fonts');
+      const fallbackDir = path.join(__dirname, '..', 'resources', 'fonts');
+      const baseDir = fs.existsSync(fontsDir) ? fontsDir : fallbackDir;
+      const fontSrc = path.join(baseDir, config.activeFont);
+      const robloxFontsPath = getRobloxFontsPath(DEFAULT_PATHS.roblox);
+      if (fs.existsSync(fontSrc) && robloxFontsPath && fs.existsSync(robloxFontsPath)) {
+        const { exec } = require('child_process');
+        const robloxFontFiles = fs.readdirSync(robloxFontsPath).filter(f => f.endsWith('.ttf') || f.endsWith('.otf'));
+        for (const rf of robloxFontFiles) {
+          const dest = path.join(robloxFontsPath, rf);
+          try {
+            await new Promise(resolve => exec(`attrib -R "${dest}"`, () => resolve()));
+            await fs.copy(fontSrc, dest, { overwrite: true });
+          } catch (e) { /* ignorar */ }
+        }
+        log.info('Fuente re-aplicada:', config.activeFont);
+      }
+    }
+
+  } catch (error) {
+    log.warn('Error re-aplicando configuración:', error.message);
+  }
+}
+
 // Lanzar Roblox (sin Roblox Studio)
 ipcMain.handle('launch-roblox', async (event, executorId, customPath) => {
   try {
@@ -1364,8 +1447,12 @@ ipcMain.handle('launch-roblox', async (event, executorId, customPath) => {
 
       if (versions.length > 0) {
         const exePath = path.join(versions[0].path, 'RobloxPlayerBeta.exe');
+        const texturePath = path.join(versions[0].path, 'PlatformContent', 'pc', 'textures');
         log.info('Buscando exe en:', exePath, '- Existe:', fs.existsSync(exePath));
         if (fs.existsSync(exePath)) {
+          // Re-aplicar configuración guardada antes de lanzar
+          // (Roblox puede haber actualizado y sobreescrito los archivos)
+          await reapplyConfigBeforeLaunch(texturePath);
           spawn(exePath, [], { detached: true, stdio: 'ignore' }).unref();
           setTimeout(() => app.quit(), 1500);
           return { success: true, message: 'Roblox iniciado', method: 'exe' };
