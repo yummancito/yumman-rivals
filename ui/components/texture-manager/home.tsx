@@ -47,6 +47,14 @@ export function HomeView({ onSettings }: HomeViewProps) {
   useEffect(() => {
     electronAPI.getAppVersion().then(v => { if (v) setVersion(v) })
     setTimeout(() => { void electronAPI.checkForUpdates() }, 3000)
+    
+    // Escuchar mensajes del updater
+    if (typeof window !== 'undefined' && window.electronAPI?.onUpdateStatus) {
+      window.electronAPI.onUpdateStatus((data: { message: string; progress?: number }) => {
+        setUpdateMessage(data.message)
+        setTimeout(() => setUpdateMessage(null), 5000)
+      })
+    }
   }, [])
 
   const ext = (url: string) => window.open(url, "_blank", "noopener,noreferrer")
@@ -70,8 +78,14 @@ export function HomeView({ onSettings }: HomeViewProps) {
     setUpdateMessage(null)
     try {
       await electronAPI.checkForUpdates()
-      setUpdateMessage("✓ Verificación completada")
-      setTimeout(() => setUpdateMessage(null), 3000)
+      // El mensaje vendrá del listener onUpdateStatus
+      // Si no viene mensaje en 2 segundos, mostrar mensaje genérico
+      setTimeout(() => {
+        if (!updateMessage) {
+          setUpdateMessage("✓ Verificación completada")
+          setTimeout(() => setUpdateMessage(null), 3000)
+        }
+      }, 2000)
     } catch {
       setUpdateMessage("✗ Error al verificar")
       setTimeout(() => setUpdateMessage(null), 3000)

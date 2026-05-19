@@ -60,6 +60,25 @@ class Updater {
       return;
     }
 
+    // En modo desarrollo, mostrar mensaje informativo
+    if (!app.isPackaged) {
+      log.info('Modo desarrollo - actualizaciones no disponibles');
+      this.sendStatusToWindow('Actualizaciones solo en versión instalada');
+      
+      // Mostrar diálogo informativo
+      setTimeout(() => {
+        dialog.showMessageBox(this.mainWindow, {
+          type: 'info',
+          title: 'Modo Desarrollo',
+          message: 'Actualizaciones automáticas',
+          detail: 'Las actualizaciones automáticas solo están disponibles en la versión instalada de la aplicación.\n\nEn modo desarrollo, descarga la última versión desde GitHub.',
+          buttons: ['Entendido'],
+          defaultId: 0
+        });
+      }, 500);
+      return;
+    }
+
     const updateConfigPath = path.join(process.resourcesPath, 'app-update.yml');
     if (!fs.existsSync(updateConfigPath)) {
       this.sendStatusToWindow('Actualizaciones disponibles solo en la versión instalada');
