@@ -7,7 +7,7 @@ const log = require('electron-log');
 
 class ResourceDownloader {
   constructor() {
-    this.resourcesUrl = 'https://github.com/mmgb5656/yumman-rivals/releases/download/v1.0.1-resources/yumman-rivals-resources-v1.0.1.zip';
+    this.resourcesUrl = 'https://github.com/mmgb5656/yumman-rivals/releases/download/v1.0.2-resources/yumman-rivals-resources-v1.0.2.zip';
     this.resourcesPath = path.join(app.getPath('userData'), 'resources');
     this.tempPath = path.join(app.getPath('temp'), 'yumman-rivals-resources.zip');
   }
