@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Settings, Loader2, Check, X, ChevronRight, ArrowRight } from "lucide-react"
+import { electronAPI } from "@/lib/electron-api"
 
 type LaunchState = "idle" | "launching" | "done" | "error"
 interface HomeViewProps { onSettings: () => void }
@@ -31,8 +32,7 @@ export function HomeView({ onSettings }: HomeViewProps) {
   const [launchState, setLaunchState] = useState<LaunchState>("idle")
   const [tipIdx, setTipIdx]           = useState(() => Math.floor(Math.random() * TIPS.length))
   const [tipVis, setTipVis]           = useState(true)
-  const [version, setVersion]         = useState("1.0.1")
-  const api = typeof window !== "undefined" ? (window as any).electronAPI : null
+  const [version, setVersion]         = useState("—")
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -43,9 +43,8 @@ export function HomeView({ onSettings }: HomeViewProps) {
   }, [])
 
   useEffect(() => {
-    if (!api) return
-    api.getAppVersion?.().then((v: string) => { if (v) setVersion(v) })
-    setTimeout(() => api.checkForUpdates?.(), 3000)
+    electronAPI.getAppVersion().then(v => { if (v) setVersion(v) })
+    setTimeout(() => { void electronAPI.checkForUpdates() }, 3000)
   }, [])
 
   const ext = (url: string) => window.open(url, "_blank", "noopener,noreferrer")
@@ -54,7 +53,7 @@ export function HomeView({ onSettings }: HomeViewProps) {
     if (launchState !== "idle") return
     setLaunchState("launching")
     try {
-      const r = await api?.launchRoblox?.("roblox")
+      const r = await electronAPI.launchRoblox("roblox")
       setLaunchState(r?.success ? "done" : "error")
       setTimeout(() => setLaunchState("idle"), 3000)
     } catch {

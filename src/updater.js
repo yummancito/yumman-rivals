@@ -1,6 +1,8 @@
 const { autoUpdater } = require('electron-updater');
 const { app, dialog, BrowserWindow } = require('electron');
 const log = require('electron-log');
+const fs = require('fs');
+const path = require('path');
 
 class Updater {
   constructor(mainWindow) {
@@ -55,6 +57,12 @@ class Updater {
   // Verificar actualizaciones
   checkForUpdates() {
     if (!this.mainWindow || this.mainWindow.isDestroyed()) {
+      return;
+    }
+
+    const updateConfigPath = path.join(process.resourcesPath, 'app-update.yml');
+    if (!fs.existsSync(updateConfigPath)) {
+      this.sendStatusToWindow('Actualizaciones disponibles solo en la versión instalada');
       return;
     }
     

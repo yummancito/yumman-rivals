@@ -17,16 +17,25 @@ class ResourceDownloader {
     try {
       const skyboxesPath = path.join(this.resourcesPath, 'skyboxes');
       const texturesPath = path.join(this.resourcesPath, 'textures');
+      const fontsPath = path.join(this.resourcesPath, 'fonts');
       
       const skyboxesExist = await fs.pathExists(skyboxesPath);
       const texturesExist = await fs.pathExists(texturesPath);
+      const fontsExist = await fs.pathExists(fontsPath);
       
       if (skyboxesExist && texturesExist) {
         // Verificar que haya archivos dentro
         const skyboxes = await fs.readdir(skyboxesPath);
         const textures = await fs.readdir(texturesPath);
         
-        return skyboxes.length > 0 && textures.length > 0;
+        // Fonts es opcional para compatibilidad con versiones antiguas del ZIP
+        let fontsValid = true;
+        if (fontsExist) {
+          const fonts = await fs.readdir(fontsPath);
+          fontsValid = fonts.length > 0;
+        }
+        
+        return skyboxes.length > 0 && textures.length > 0 && fontsValid;
       }
       
       return false;
@@ -250,9 +259,22 @@ class ResourceDownloader {
       // Verificar que se extrajeron los recursos
       const skyboxesPath = path.join(this.resourcesPath, 'skyboxes');
       const texturesPath = path.join(this.resourcesPath, 'textures');
+      const fontsPath = path.join(this.resourcesPath, 'fonts');
       
       if (!fs.existsSync(skyboxesPath) || !fs.existsSync(texturesPath)) {
         throw new Error('Recursos no se extrajeron correctamente');
+      }
+      
+      // Si fonts no está en el ZIP, copiar desde recursos locales
+      if (!fs.existsSync(fontsPath)) {
+        log.info('Fonts no encontradas en ZIP, copiando desde recursos locales...');
+        const localFontsPath = path.join(__dirname, '..', 'resources', 'fonts');
+        if (fs.existsSync(localFontsPath)) {
+          await fs.copy(localFontsPath, fontsPath);
+          log.info('Fonts copiadas desde recursos locales');
+        } else {
+          log.warn('No se encontraron fonts locales, la pestaña de fuentes estará vacía');
+        }
       }
       
       onStatus('Archivos extraídos correctamente');

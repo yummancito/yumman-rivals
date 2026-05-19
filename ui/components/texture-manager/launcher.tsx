@@ -1,4 +1,4 @@
-﻿
+
 "use client"
 
 
@@ -101,6 +101,7 @@ export function Launcher() {
   const [texturePath, setTexturePath] = useState("")
   const [launchState, setLaunchState] = useState<LaunchState>("idle")
   const [isInstalling, setIsInstalling] = useState(false)
+  const [appVersion, setAppVersion] = useState("—")
 
   // Sky
   const [selectedSky, setSelectedSky] = useState<string | null>(null)
@@ -136,13 +137,15 @@ export function Launcher() {
   const [flagSearch, setFlagSearch] = useState("")
 
   const tr = TR[lang]
-  const api = typeof window !== "undefined" ? (window as any).electronAPI : null
+  const api = typeof window !== "undefined" ? window.electronAPI : null
 
   useEffect(() => {
     async function init() {
       const r = await electronAPI.getExecutorTexturePath("roblox")
       if (r.valid) setTexturePath(r.texturePath)
       if (!api) return
+      const v = await electronAPI.getAppVersion()
+      if (v) setAppVersion(v)
       const fr = await api.getAvailableFonts?.()
       if (fr?.success) {
         setFonts(fr.fonts || [])
@@ -222,7 +225,11 @@ export function Launcher() {
     setApplyingTex(true)
     try {
       const r = await electronAPI.applyDarkTextures(!darkOn, texturePath)
-      if (r?.success) setDarkOn(!darkOn)
+      if (r?.success) {
+        const next = !darkOn
+        setDarkOn(next)
+        if (next) setPotatoTexOn(false)
+      }
     } finally { setApplyingTex(false) }
   }
 
@@ -230,7 +237,10 @@ export function Launcher() {
     setApplyingTex(true)
     try {
       const r = await api?.applyPotatoTextures?.(texturePath)
-      if (r?.success) setPotatoTexOn(true)
+      if (r?.success) {
+        setPotatoTexOn(true)
+        setDarkOn(false)
+      }
     } finally { setApplyingTex(false) }
   }
 
@@ -506,7 +516,7 @@ export function Launcher() {
                 src="https://static.wikia.nocookie.net/logopedia/images/5/51/RivalsLogo.png/revision/latest?cb=20260110001756"
                 alt="Rivals" className="h-7 w-7 object-contain opacity-90" crossOrigin="anonymous" />
               <span className="text-sm font-semibold text-[#AEAEAE] tracking-tight">YUMMAN RIVALS</span>
-              <span className="ml-1 rounded-md bg-[#252320] px-2 py-0.5 text-[10px] font-medium text-[#AEAEAE]">v1.0.1</span>
+              <span className="ml-1 rounded-md bg-[#252320] px-2 py-0.5 text-[10px] font-medium text-[#AEAEAE]">v{appVersion}</span>
               <div className="ml-auto flex items-center gap-2">
                 <button onClick={() => setLang(lang === "es" ? "en" : "es")}
                   className="rounded-md bg-[#252320] px-2.5 py-1 text-[11px] font-semibold text-[#AEAEAE] hover:text-[#AEAEAE] hover:bg-zinc-700 transition-all">

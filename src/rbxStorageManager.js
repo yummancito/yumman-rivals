@@ -42,7 +42,7 @@ class RbxStorageManager {
   
   /**
    * Aplica un skybox usando el método rbx-storage
-   * NUEVO: Copia los archivos de assets del skyfix (archivos de caché de Roblox)
+   * Lee los hashes desde la carpeta assets/ del skybox
    * @param {string} skyboxFolder - Carpeta con los archivos del skybox
    * @returns {Promise<Object>} Resultado de la operación
    */
@@ -64,7 +64,8 @@ class RbxStorageManager {
       
       if (skyboxHasAssets) {
         console.log('  ✓ Carpeta assets encontrada, usando archivos de caché');
-        return await this.applySkyboxFromAssets(assetsFolder);
+        // ✅ NUEVO: Leer los hashes reales de la carpeta assets
+        return await this.applySkyboxFromAssetsAuto(assetsFolder);
       } else {
         console.log('  ⚠ No hay carpeta assets, copiando archivos .tex directamente');
         return await this.applySkyboxFromTexFiles(skyboxFolder);
@@ -188,6 +189,79 @@ class RbxStorageManager {
         success: copiedFiles > 0,
         message: `Skybox aplicado desde .tex (${copiedFiles} archivos, ${readOnlySuccess} protegidos)`,
         method: 'rbx-storage-tex',
+        filesApplied: copiedFiles,
+        readOnlyApplied: readOnlySuccess
+      };
+      
+    } catch (error) {
+      return {
+        success: false,
+        message: `Error: ${error.message}`
+      };
+    }
+  }
+  
+  /**
+   * ✅ NUEVO: Aplica skybox leyendo automáticamente los hashes de la carpeta assets
+   * Esto permite que CUALQUIER skybox funcione, no solo uno hardcodeado
+   * @param {string} assetsFolder - Carpeta assets con los archivos hash
+   * @returns {Promise<Object>} Resultado
+   */
+  async applySkyboxFromAssetsAuto(assetsFolder) {
+    try {
+      console.log('  📁 Leyendo hashes automáticamente desde assets/...');
+      
+      // Leer todos los archivos de la carpeta assets
+      const assetFiles = await fs.readdir(assetsFolder);
+      console.log(`  ✓ Encontrados ${assetFiles.length} archivos en assets/`);
+      
+      if (assetFiles.length === 0) {
+        return {
+          success: false,
+          message: 'Carpeta assets vacía'
+        };
+      }
+      
+      // Mapear cada archivo a su carpeta correspondiente según los primeros 2 caracteres
+      let copiedFiles = 0;
+      let readOnlySuccess = 0;
+      
+      for (const hashFile of assetFiles) {
+        // Los primeros 2 caracteres del hash determinan la carpeta
+        const folder = hashFile.substring(0, 2);
+        const destFolder = path.join(this.rbxStoragePath, folder);
+        const sourcePath = path.join(assetsFolder, hashFile);
+        const destPath = path.join(destFolder, hashFile);
+        
+        try {
+          // Crear carpeta si no existe
+          await fs.ensureDir(destFolder);
+          
+          // Quitar read-only si existe
+          await this.removeReadOnly(destPath);
+          
+          // Copiar archivo
+          await fs.copy(sourcePath, destPath, { overwrite: true });
+          copiedFiles++;
+          console.log(`  ✓ ${hashFile} -> ${folder}/${hashFile}`);
+          
+          // Marcar como read-only
+          const readOnlyResult = await this.setReadOnly(destPath);
+          if (readOnlyResult) {
+            readOnlySuccess++;
+          }
+        } catch (error) {
+          console.error(`  ✗ Error copiando ${hashFile}:`, error.message);
+        }
+      }
+      
+      console.log(`\n  ✓ Total copiados: ${copiedFiles}/${assetFiles.length} archivos`);
+      console.log(`  ✓ Protegidos: ${readOnlySuccess}/${copiedFiles}`);
+      
+      return {
+        success: copiedFiles > 0,
+        message: `Skybox aplicado (${copiedFiles} archivos, ${readOnlySuccess} protegidos)`,
+        method: 'rbx-storage-auto',
         filesApplied: copiedFiles,
         readOnlyApplied: readOnlySuccess
       };

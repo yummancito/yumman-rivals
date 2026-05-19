@@ -3,18 +3,18 @@
 import { useState } from "react"
 import { HomeView } from "@/components/texture-manager/home"
 import { SettingsView } from "@/components/texture-manager/settings-view"
+import { electronAPI } from "@/lib/electron-api"
 
 export default function Page() {
   const [view, setView] = useState<"home" | "settings">("home")
-  const api = typeof window !== "undefined" ? (window as any).electronAPI : null
 
   const goSettings = () => {
-    api?.resizeWindow?.("settings")
+    void electronAPI.resizeWindow("settings")
     setView("settings")
   }
 
   const goHome = () => {
-    api?.resizeWindow?.("home")
+    void electronAPI.resizeWindow("home")
     setView("home")
   }
 

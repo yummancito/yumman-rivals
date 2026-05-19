@@ -414,7 +414,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                 <button
                   onClick={async () => {
                     if (!electronAPI.isElectron()) return;
-                    const api = (window as any).electronAPI;
+                    const api = window.electronAPI;
                     const folderPath = await api.selectFolder('Seleccionar carpeta /Versions/');
                     if (folderPath) {
                       setSettings(prev => ({ ...prev, customExecutorPath: folderPath }));

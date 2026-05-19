@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -45,6 +45,7 @@ interface SettingsViewProps {
 export function SettingsView({ onBack }: SettingsViewProps = {}) {
   const [tab, setTab] = useState<Tab>("inicio")
   const [texturePath, setTexturePath] = useState("")
+  const [appVersion, setAppVersion] = useState("—")
 
   // Sky
   const [selectedSky, setSelectedSky] = useState<string | null>(null)
@@ -87,7 +88,7 @@ export function SettingsView({ onBack }: SettingsViewProps = {}) {
   const [modalJsonText, setModalJsonText] = useState("")
   const [modalError, setModalError] = useState("")
 
-  const api = typeof window !== "undefined" ? (window as any).electronAPI : null
+  const api = typeof window !== "undefined" ? window.electronAPI : null
 
   useEffect(() => {
     async function init() {
@@ -96,13 +97,27 @@ export function SettingsView({ onBack }: SettingsViewProps = {}) {
 
       if (!api) return
 
+      const v = await electronAPI.getAppVersion()
+      if (v) setAppVersion(v)
+
       // Cargar configuración persistente guardada
       const cfg = await electronAPI.loadAppConfig()
       if (cfg?.config) {
         if (cfg.config.selectedSky) setSelectedSky(cfg.config.selectedSky as string)
-        if (cfg.config.darkOn) setDarkOn(true)
-        if (cfg.config.potatoTexOn) setPotatoTexOn(true)
-        if (cfg.config.potatoOn) setPotatoOn(true)
+        const potatoModeCfg = !!cfg.config.potatoOn
+        let potatoTexCfg = !!cfg.config.potatoTexOn
+        let darkCfg = !!cfg.config.darkOn
+
+        if (potatoModeCfg) potatoTexCfg = true
+        if (potatoTexCfg) darkCfg = false
+
+        setPotatoOn(potatoModeCfg)
+        setPotatoTexOn(potatoTexCfg)
+        setDarkOn(darkCfg)
+
+        if (cfg.config.darkOn !== darkCfg || cfg.config.potatoTexOn !== potatoTexCfg) {
+          await electronAPI.saveAppConfig({ darkOn: darkCfg, potatoTexOn: potatoTexCfg })
+        }
         if (cfg.config.lowLatOn) setLowLatOn(true)
         if (cfg.config.activeFont) setActiveFont(cfg.config.activeFont as string)
       }
@@ -184,8 +199,17 @@ export function SettingsView({ onBack }: SettingsViewProps = {}) {
     try {
       const r = await electronAPI.applyDarkTextures(!darkOn, texturePath)
       if (r?.success) {
-        setDarkOn(!darkOn)
-        await electronAPI.saveAppConfig({ darkOn: !darkOn })
+        const next = !darkOn
+        setDarkOn(next)
+        if (!next) {
+          setPotatoTexOn(false)
+          await electronAPI.saveAppConfig({ darkOn: false, potatoTexOn: false })
+        } else {
+          setPotatoTexOn(false)
+          await electronAPI.saveAppConfig({ darkOn: true, potatoTexOn: false })
+        }
+      } else if (r?.message) {
+        alert(`Error: ${r.message}`)
       }
     } finally { setApplyingTex(false) }
   }
@@ -193,10 +217,24 @@ export function SettingsView({ onBack }: SettingsViewProps = {}) {
   const handlePotatoTex = async () => {
     setApplyingTex(true)
     try {
-      const r = await api?.applyPotatoTextures?.(texturePath)
-      if (r?.success) {
-        setPotatoTexOn(true)
-        await electronAPI.saveAppConfig({ potatoTexOn: true })
+      if (!potatoTexOn) {
+        // Activar
+        const r = await api?.applyPotatoTextures?.(texturePath)
+        if (r?.success) {
+          setPotatoTexOn(true)
+          setDarkOn(false)
+          await electronAPI.saveAppConfig({ potatoTexOn: true, darkOn: false })
+        }
+      } else {
+        // Desactivar - restaurar texturas originales
+        const r = await electronAPI.restoreOriginal(texturePath)
+        if (r?.success) {
+          setPotatoTexOn(false)
+          setDarkOn(false)
+          await electronAPI.saveAppConfig({ potatoTexOn: false, darkOn: false })
+        } else if (r?.message) {
+          alert(`Error: ${r.message}`)
+        }
       }
     } finally { setApplyingTex(false) }
   }
@@ -242,7 +280,24 @@ export function SettingsView({ onBack }: SettingsViewProps = {}) {
       if (fr?.success) { await api?.saveFlags?.(fr.flags); setFlags(fr.flags) }
       await api?.applyPotatoTextures?.(texturePath)
       setPotatoOn(true)
-      await electronAPI.saveAppConfig({ potatoOn: true, potatoTexOn: true })
+      setPotatoTexOn(true)
+      setDarkOn(false)
+      await electronAPI.saveAppConfig({ potatoOn: true, potatoTexOn: true, darkOn: false })
+    } finally { setApplyingPotato(false) }
+  }
+
+  const handleDisablePotato = async () => {
+    setApplyingPotato(true)
+    try {
+      // Restaurar texturas originales
+      await electronAPI.restoreOriginal(texturePath)
+      // Limpiar flags de potato
+      await api?.clearFlags?.()
+      setFlags({})
+      setPotatoOn(false)
+      setPotatoTexOn(false)
+      setDarkOn(false)
+      await electronAPI.saveAppConfig({ potatoOn: false, potatoTexOn: false, darkOn: false })
     } finally { setApplyingPotato(false) }
   }
 
@@ -469,7 +524,7 @@ export function SettingsView({ onBack }: SettingsViewProps = {}) {
                 <p className="text-xs text-[#666360] mt-0.5">{item.sub}</p>
               </div>
               <div className={`rounded-full px-3 py-1 text-[11px] font-medium ${item.on ? "bg-[#3A3835] text-[#AEAEAE]" : "bg-[#1D1B17] text-[#666360]"}`}>
-                {item.on ? "Activo" : "Inactivo"}
+                {applyingTex ? "Aplicando..." : item.on ? "Desactivar" : "Activar"}
               </div>
             </button>
           ))}
@@ -529,11 +584,19 @@ export function SettingsView({ onBack }: SettingsViewProps = {}) {
               </li>
             ))}
           </ul>
-          <button onClick={handlePotato} disabled={applyingPotato || potatoOn}
-            className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all ${potatoOn ? "bg-[#3A3835] text-[#AEAEAE] cursor-default" : "bg-[#E6E6E6] text-[#1D1B17] hover:bg-[#CFCFCF] disabled:opacity-50"}`}>
-            {applyingPotato ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-            {potatoOn ? "Potato Mode activo" : "Activar Potato Mode"}
-          </button>
+          {potatoOn ? (
+            <button onClick={handleDisablePotato} disabled={applyingPotato}
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-[#2A2825] py-3 text-sm font-semibold text-[#AEAEAE] hover:bg-[#252320] hover:border-[#3A3835] transition-all disabled:opacity-50">
+              {applyingPotato ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+              Desactivar Potato Mode
+            </button>
+          ) : (
+            <button onClick={handlePotato} disabled={applyingPotato}
+              className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold bg-[#E6E6E6] text-[#1D1B17] hover:bg-[#CFCFCF] transition-all disabled:opacity-50">
+              {applyingPotato ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+              Activar Potato Mode
+            </button>
+          )}
         </div>
         <button onClick={handleLowLat}
           className={`flex items-center gap-4 rounded-xl border p-4 text-left transition-all hover:scale-[1.005] ${lowLatOn ? "border-[#3A3835] bg-[#252320]" : "border-[#2A2825] bg-[#252320] hover:border-[#3A3835]"}`}>
@@ -831,7 +894,7 @@ export function SettingsView({ onBack }: SettingsViewProps = {}) {
 
         {/* Version */}
         <div className="px-4 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-          <p style={{ color: "#333230", fontSize: 10 }}>v1.0.1 · YUMMAN</p>
+          <p style={{ color: "#333230", fontSize: 10 }}>v{appVersion} · YUMMAN</p>
         </div>
       </motion.nav>
 

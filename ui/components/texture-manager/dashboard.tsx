@@ -42,7 +42,7 @@ const translations = {
     joinButton: "Unirse al Discord",
     settingsTitle: "Configuración", language: "Idioma", theme: "Tema",
     darkMode: "Modo Oscuro", lightModeDisabled: "Modo Claro (Deshabilitado)",
-    version: "YUMMAN RIVALS v1.0.1",
+    versionPrefix: "YUMMAN RIVALS v",
     restoreOriginal: "Restaurar Texturas Originales",
     restoreDesc: "Quita arena negra y cielo personalizado",
     restoring: "Restaurando...", restored: "Restaurado",
@@ -61,7 +61,7 @@ const translations = {
     joinButton: "Join Discord",
     settingsTitle: "Settings", language: "Language", theme: "Theme",
     darkMode: "Dark Mode", lightModeDisabled: "Light Mode (Disabled)",
-    version: "YUMMAN RIVALS v1.0.1",
+    versionPrefix: "YUMMAN RIVALS v",
     restoreOriginal: "Restore Original Textures",
     restoreDesc: "Remove black arena and custom sky",
     restoring: "Restoring...", restored: "Restored",
@@ -79,6 +79,7 @@ export function Dashboard({ initialSettings }: DashboardProps) {
   const [executorInfo, setExecutorInfo] = useState("")
   const [isRestoring, setIsRestoring] = useState(false)
   const [restored, setRestored] = useState(false)
+  const [appVersion, setAppVersion] = useState("—")
 
   // Ref para el scroll del carrusel — evita querySelector genérico
   const skyScrollRef = useRef<HTMLDivElement>(null)
@@ -106,6 +107,10 @@ export function Dashboard({ initialSettings }: DashboardProps) {
     }
     loadPaths()
   }, [initialSettings.executor, initialSettings.customExecutorPath])
+
+  useEffect(() => {
+    electronAPI.getAppVersion().then(v => { if (v) setAppVersion(v) })
+  }, [])
 
   const handleApplySky = async () => {
     if (!selectedSky || isApplying) return
@@ -356,7 +361,7 @@ export function Dashboard({ initialSettings }: DashboardProps) {
 
       <footer className="border-t border-border px-6 py-3">
         <div className="mx-auto flex max-w-6xl items-center justify-center">
-          <span className="text-xs text-muted-foreground">{t.version}</span>
+          <span className="text-xs text-muted-foreground">{t.versionPrefix}{appVersion}</span>
         </div>
       </footer>
     </div>

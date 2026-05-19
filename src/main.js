@@ -1,4 +1,4 @@
-﻿const { app, BrowserWindow, ipcMain, dialog, shell, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs-extra');
 const os = require('os');
@@ -504,6 +504,23 @@ ipcMain.handle('create-backup', async (event, texturePath) => {
   }
 });
 
+async function ensureTexturesBackup(texturePath) {
+  const backupPath = DEFAULT_PATHS.texturesBackup;
+  try {
+    if (fs.existsSync(backupPath) && fs.readdirSync(backupPath).length > 0) {
+      return { success: true, created: false };
+    }
+    if (!texturePath || !fs.existsSync(texturePath)) {
+      return { success: false, created: false, message: `Ruta de texturas no válida: ${texturePath}` };
+    }
+    await fs.ensureDir(backupPath);
+    await fs.copy(texturePath, backupPath);
+    return { success: true, created: true };
+  } catch (error) {
+    return { success: false, created: false, message: error.message };
+  }
+}
+
 // Aplicar texturas negras
 ipcMain.handle('apply-black-textures', async (event, texturePath) => {
   try {
@@ -511,6 +528,11 @@ ipcMain.handle('apply-black-textures', async (event, texturePath) => {
     
     if (!texturePath || !fs.existsSync(texturePath)) {
       return { success: false, message: `Ruta de texturas no válida: ${texturePath}` };
+    }
+
+    const backupResult = await ensureTexturesBackup(texturePath);
+    if (!backupResult.success) {
+      return { success: false, message: `No se pudo crear backup: ${backupResult.message}` };
     }
 
     const ruptikDarkPath = TEXTURES_PATH;
@@ -538,9 +560,123 @@ ipcMain.handle('apply-black-textures', async (event, texturePath) => {
     }
     
     log.info(`Texturas negras aplicadas: ${copiedCount}/${items.length}`);
+
+    try {
+      const existing = fs.existsSync(APP_CONFIG_PATH)
+        ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
+        : {};
+      await fs.ensureDir(YUMMAN_RIVALS_PATH);
+      await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ ...existing, darkOn: true, potatoTexOn: false }, null, 2), 'utf8');
+    } catch (e) { log.warn('No se pudo persistir darkOn:', e.message); }
+
     return { success: true, message: `Texturas negras aplicadas: ${copiedCount} items` };
   } catch (error) {
     log.error('Error apply-black-textures:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+// Aplicar texturas oscuras (wrapper que maneja enabled/disabled)
+ipcMain.handle('apply-dark-textures', async (event, enabled, texturePath) => {
+  try {
+    console.log('=== APLICANDO/DESACTIVANDO TEXTURAS OSCURAS ===');
+    console.log('Enabled:', enabled);
+    console.log('Texture Path:', texturePath);
+    
+    if (enabled) {
+      // Aplicar texturas oscuras (reutilizar lógica de apply-black-textures)
+      if (!texturePath || !fs.existsSync(texturePath)) {
+        return { success: false, message: `Ruta de texturas no válida: ${texturePath}` };
+      }
+
+      const backupResult = await ensureTexturesBackup(texturePath);
+      if (!backupResult.success) {
+        return { success: false, message: `No se pudo crear backup: ${backupResult.message}` };
+      }
+
+      const ruptikDarkPath = TEXTURES_PATH;
+      if (!fs.existsSync(ruptikDarkPath)) {
+        return { success: false, message: 'No se encontró la carpeta de texturas Ruptic Dark' };
+      }
+      
+      const { exec } = require('child_process');
+      const items = fs.readdirSync(ruptikDarkPath);
+      let copiedCount = 0;
+      
+      for (const item of items) {
+        // ✅ SKIP: No copiar la carpeta sky (los cielos se aplican por separado)
+        if (item === 'sky') {
+          log.info('Saltando carpeta sky (los cielos se aplican por separado)');
+          continue;
+        }
+        
+        const sourcePath = path.join(ruptikDarkPath, item);
+        const destPath = path.join(texturePath, item);
+        try {
+          // Remove read-only recursively first
+          await new Promise(resolve => exec(`attrib -R "${destPath}" /S /D`, () => resolve()));
+          await fs.copy(sourcePath, destPath, { overwrite: true });
+          copiedCount++;
+          // Re-protect
+          await new Promise(resolve => exec(`attrib +R "${destPath}" /S /D`, () => resolve()));
+        } catch (error) {
+          log.warn(`Error copiando ${item}:`, error.message);
+        }
+      }
+      
+      log.info(`Texturas oscuras aplicadas: ${copiedCount}/${items.length}`);
+      
+      // ✅ PERSISTIR ESTADO ACTIVADO
+      try {
+        const existing = fs.existsSync(APP_CONFIG_PATH)
+          ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
+          : {};
+        await fs.ensureDir(YUMMAN_RIVALS_PATH);
+        await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ 
+          ...existing, 
+          darkOn: true, 
+          potatoTexOn: false 
+        }, null, 2), 'utf8');
+        log.info('Estado darkOn=true persistido');
+      } catch (e) { 
+        log.warn('No se pudo persistir darkOn:', e.message); 
+      }
+      
+      return { success: true, message: `Texturas oscuras aplicadas: ${copiedCount} items` };
+    } else {
+      // Desactivar texturas oscuras (restaurar originales)
+      const backupPath = DEFAULT_PATHS.texturesBackup;
+      
+      if (!fs.existsSync(backupPath)) {
+        return { success: false, message: 'No se encontró backup de texturas originales' };
+      }
+
+      const { exec } = require('child_process');
+      await new Promise(resolve => exec(`attrib -R "${texturePath}" /S /D`, () => resolve()));
+      await fs.copy(backupPath, texturePath, { overwrite: true });
+      
+      log.info('Texturas originales restauradas');
+      
+      // ✅ PERSISTIR ESTADO DESACTIVADO
+      try {
+        const existing = fs.existsSync(APP_CONFIG_PATH)
+          ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
+          : {};
+        await fs.ensureDir(YUMMAN_RIVALS_PATH);
+        await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ 
+          ...existing, 
+          darkOn: false, 
+          potatoTexOn: false 
+        }, null, 2), 'utf8');
+        log.info('Estado darkOn=false persistido');
+      } catch (e) { 
+        log.warn('No se pudo persistir darkOn=false:', e.message); 
+      }
+      
+      return { success: true, message: 'Texturas originales restauradas' };
+    }
+  } catch (error) {
+    log.error('Error apply-dark-textures:', error);
     return { success: false, message: error.message };
   }
 });
@@ -586,10 +722,43 @@ ipcMain.handle('restore-original', async (event, texturePath) => {
     const backupPath = DEFAULT_PATHS.texturesBackup;
     
     if (!fs.existsSync(backupPath)) {
-      return { success: false, message: 'No se encontró backup de texturas originales' };
+      try {
+        const { spawn } = require('child_process');
+        const installerPaths = [
+          path.join(RESOURCES_PATH, 'RobloxPlayerInstaller.exe'),
+          path.join(__dirname, '..', 'resources', 'RobloxPlayerInstaller.exe'),
+          path.join(process.resourcesPath || '', 'resources', 'RobloxPlayerInstaller.exe'),
+        ];
+        let installerPath = null;
+        for (const p of installerPaths) {
+          if (fs.existsSync(p)) { installerPath = p; break; }
+        }
+        if (installerPath) {
+          spawn(installerPath, ['/silent'], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+          try {
+            const existing = fs.existsSync(APP_CONFIG_PATH)
+              ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
+              : {};
+            await fs.ensureDir(YUMMAN_RIVALS_PATH);
+            await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ ...existing, darkOn: false, potatoTexOn: false, potatoOn: false }, null, 2), 'utf8');
+          } catch (e) {}
+          return { success: true, message: 'Restauración iniciada. Roblox se reinstalará para volver a fábrica.' };
+        }
+      } catch (e) {}
+      return { success: false, message: 'No se encontró backup de texturas originales y no se pudo iniciar el instalador de Roblox.' };
     }
-    
+
+    const { exec } = require('child_process');
+    await new Promise(resolve => exec(`attrib -R "${texturePath}" /S /D`, () => resolve()));
     await fs.copy(backupPath, texturePath, { overwrite: true });
+
+    try {
+      const existing = fs.existsSync(APP_CONFIG_PATH)
+        ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
+        : {};
+      await fs.ensureDir(YUMMAN_RIVALS_PATH);
+      await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ ...existing, darkOn: false, potatoTexOn: false, potatoOn: false }, null, 2), 'utf8');
+    } catch (e) {}
     
     return { success: true, message: 'Texturas originales restauradas' };
   } catch (error) {
@@ -936,8 +1105,11 @@ async function applySkyboxToPath(skyboxPath, texFiles, texturePath) {
   const skyPath = path.join(texturePath, 'sky');
   
   try {
+    log.info(`Aplicando skybox a ruta: ${skyPath}`);
+    
     // Crear carpeta sky
     await fs.ensureDir(skyPath);
+    log.info(`Carpeta sky creada/verificada: ${skyPath}`);
     
     // Quitar protección de la carpeta sky completa
     await new Promise((resolve) => {
@@ -946,6 +1118,7 @@ async function applySkyboxToPath(skyboxPath, texFiles, texturePath) {
     
     // Copiar archivos .tex
     let copiedCount = 0;
+    let failedFiles = [];
     for (const file of texFiles) {
       const src = path.join(skyboxPath, file);
       const dest = path.join(skyPath, file);
@@ -954,25 +1127,48 @@ async function applySkyboxToPath(skyboxPath, texFiles, texturePath) {
         await fs.copy(src, dest, { overwrite: true });
         copiedCount++;
       } catch (error) {
-        console.log(`Error copiando ${file}:`, error.message);
+        log.warn(`Error copiando ${file}:`, error.message);
+        failedFiles.push(file);
       }
     }
+    
+    if (failedFiles.length > 0) {
+      log.warn(`Archivos fallidos: ${failedFiles.join(', ')}`);
+    }
+    
+    log.info(`Archivos copiados: ${copiedCount}/${texFiles.length}`);
     
     // Proteger toda la carpeta sky recursivamente
     await new Promise((resolve) => {
       exec(`attrib +R "${skyPath}" /S /D`, (error) => {
         if (error) {
-          console.warn('Advertencia: no se pudo proteger la carpeta sky:', error.message);
+          log.warn('Advertencia: no se pudo proteger la carpeta sky:', error.message);
         }
         resolve(); // No es crítico si falla la protección
       });
     });
     
+    // ✅ VALIDACIÓN: Si todos los archivos fallaron, considerar error
+    if (copiedCount === 0) {
+      return {
+        success: false,
+        message: 'No se pudo copiar ningún archivo .tex. Verifica que los archivos no estén corruptos.'
+      };
+    }
+    
+    // ✅ VALIDACIÓN: Si faltan archivos críticos, advertir
+    if (copiedCount < 6) {
+      log.warn(`⚠️ Skybox incompleto: solo ${copiedCount}/6 archivos copiados`);
+    }
+    
     return {
       success: true,
-      filesApplied: copiedCount
+      filesApplied: copiedCount,
+      failedFiles: failedFiles.length > 0 ? failedFiles : undefined,
+      complete: copiedCount === 6
     };
   } catch (error) {
+    log.error('Error en applySkyboxToPath:', error);
     return {
       success: false,
       message: error.message
@@ -1023,6 +1219,13 @@ ipcMain.handle('apply-skybox-by-name', async (event, skyboxName, texturePath) =>
     const rbxResult = await rbxStorage.applySkyboxFromTexFiles(skyboxPath);
     log.info('Resultado rbx-storage:', rbxResult);
 
+    if (!rbxResult.success) {
+      log.warn('rbx-storage falló, usando método tradicional como fallback');
+      log.warn('Error rbx-storage:', rbxResult.message);
+    } else {
+      log.info('✓ rbx-storage aplicado correctamente');
+    }
+
     // =====================================================
     // PASO 2: Copiar assets fijos al rbx-storage
     // Estos son los archivos del move.bat original
@@ -1056,6 +1259,7 @@ ipcMain.handle('apply-skybox-by-name', async (event, skyboxName, texturePath) =>
       console.log(`✓ Encontradas ${allVersions.length} versiones`);
       
       // Aplicar en TODAS las versiones
+      let failedVersions = [];
       for (const version of allVersions) {
         if (fs.existsSync(version.path)) {
           console.log(`Aplicando en ${version.name}...`);
@@ -1063,12 +1267,34 @@ ipcMain.handle('apply-skybox-by-name', async (event, skyboxName, texturePath) =>
           if (result.success) {
             totalVersionsApplied++;
             versionsWithSky.push(version.name);
+            // ✅ Verificar si el skybox está completo
+            if (!result.complete) {
+              log.warn(`⚠️ Skybox incompleto en ${version.name}: ${result.filesApplied}/6 archivos`);
+            }
+          } else {
+            failedVersions.push(version.name);
+            log.error(`❌ Error aplicando skybox en ${version.name}: ${result.message}`);
           }
         }
       }
 
       // Aplicar assets al rbx-storage (equivalente al move.bat)
       // Ya se hizo arriba, no repetir
+      
+      // ✅ Persistir el skybox seleccionado
+      try {
+        const existing = fs.existsSync(APP_CONFIG_PATH)
+          ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
+          : {};
+        await fs.ensureDir(YUMMAN_RIVALS_PATH);
+        await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ 
+          ...existing, 
+          selectedSky: skyboxName 
+        }, null, 2), 'utf8');
+        log.info(`Skybox "${skyboxName}" guardado en configuración`);
+      } catch (e) { 
+        log.warn('No se pudo persistir selectedSky:', e.message); 
+      }
       
       return {
         success: true,
@@ -1272,34 +1498,51 @@ async function reapplyConfigBeforeLaunch(texturePath) {
     if (config.darkOn && texturePath && fs.existsSync(texturePath)) {
       const ruptikDarkPath = TEXTURES_PATH;
       if (fs.existsSync(ruptikDarkPath)) {
+        log.info('Re-aplicando dark textures...');
         const { exec } = require('child_process');
         const items = fs.readdirSync(ruptikDarkPath);
+        let copiedCount = 0;
         for (const item of items) {
           const src = path.join(ruptikDarkPath, item);
           const dest = path.join(texturePath, item);
           try {
             await new Promise(resolve => exec(`attrib -R "${dest}" /S /D`, () => resolve()));
             await fs.copy(src, dest, { overwrite: true });
-          } catch (e) { /* ignorar */ }
+            copiedCount++;
+          } catch (e) {
+            log.warn(`Error re-aplicando dark texture ${item}:`, e.message);
+          }
         }
-        log.info('Dark textures re-aplicadas');
+        log.info(`Dark textures re-aplicadas: ${copiedCount}/${items.length}`);
+      } else {
+        log.warn('Ruptic Dark textures no encontradas para re-aplicar');
       }
     }
 
     // Re-aplicar potato textures
     if (config.potatoTexOn && texturePath && fs.existsSync(texturePath)) {
       const potatoSrc = path.join(RESOURCES_PATH, 'textures', 'potato', 'PlatformContent', 'pc', 'textures');
-      if (fs.existsSync(potatoSrc)) {
+      const fallbackSrc = path.join(__dirname, '..', 'resources', 'textures', 'potato', 'PlatformContent', 'pc', 'textures');
+      const src = fs.existsSync(potatoSrc) ? potatoSrc : fallbackSrc;
+      
+      if (fs.existsSync(src)) {
+        log.info('Re-aplicando potato textures...');
         const { exec } = require('child_process');
-        const files = fs.readdirSync(potatoSrc);
+        const files = fs.readdirSync(src);
+        let copiedCount = 0;
         for (const file of files) {
           const dest = path.join(texturePath, file);
           try {
             await new Promise(resolve => exec(`attrib -R "${dest}"`, () => resolve()));
-            await fs.copy(path.join(potatoSrc, file), dest, { overwrite: true });
-          } catch (e) { /* ignorar */ }
+            await fs.copy(path.join(src, file), dest, { overwrite: true });
+            copiedCount++;
+          } catch (e) {
+            log.warn(`Error re-aplicando potato texture ${file}:`, e.message);
+          }
         }
-        log.info('Potato textures re-aplicadas');
+        log.info(`Potato textures re-aplicadas: ${copiedCount}/${files.length}`);
+      } else {
+        log.warn('Potato textures no encontradas para re-aplicar');
       }
     }
 
@@ -1529,7 +1772,7 @@ ipcMain.handle('install-roblox', async () => {
     const proc = spawn(installerPath, ['/silent'], {
       detached: true,
       stdio: 'ignore',
-      windowsHide: false // El instalador de Roblox necesita mostrarse para autenticarse
+      windowsHide: true
     });
     
     return { success: true, message: 'Instalador de Roblox iniciado' };
@@ -1660,6 +1903,11 @@ ipcMain.handle('apply-potato-textures', async (event, texturePath) => {
       return { success: false, message: `Ruta de texturas no válida: ${texturePath}` };
     }
 
+    const backupResult = await ensureTexturesBackup(texturePath);
+    if (!backupResult.success) {
+      return { success: false, message: `No se pudo crear backup: ${backupResult.message}` };
+    }
+
     const potatoSrc = path.join(RESOURCES_PATH, 'textures', 'potato', 'PlatformContent', 'pc', 'textures');
     const fallbackSrc = path.join(__dirname, '..', 'resources', 'textures', 'potato', 'PlatformContent', 'pc', 'textures');
     const src = fs.existsSync(potatoSrc) ? potatoSrc : fallbackSrc;
@@ -1685,16 +1933,40 @@ ipcMain.handle('apply-potato-textures', async (event, texturePath) => {
     
     log.info(`Texturas potato aplicadas: ${copied}/${files.length}`);
 
+    // ✅ APLICAR SKYBOX GRIS (Chill gray) para potato mode
+    try {
+      const graySkyPath = path.join(SKYBOXES_PATH, 'Chill gray');
+      if (fs.existsSync(graySkyPath)) {
+        log.info('Aplicando skybox gris para potato mode...');
+        const texFiles = fs.readdirSync(graySkyPath).filter(f => f.endsWith('.tex'));
+        if (texFiles.length > 0) {
+          await applySkyboxToPath(graySkyPath, texFiles, texturePath);
+          await rbxStorage.applySkyboxFromTexFiles(graySkyPath);
+          log.info('✓ Skybox gris aplicado para potato mode');
+        }
+      } else {
+        log.warn('Skybox gris no encontrado, continuando sin él');
+      }
+    } catch (skyError) {
+      log.warn('Error aplicando skybox gris:', skyError.message);
+      // No es crítico, continuar
+    }
+
     // Persistir potato mode en app-config
     try {
       const existing = fs.existsSync(APP_CONFIG_PATH)
         ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
         : {};
       await fs.ensureDir(YUMMAN_RIVALS_PATH);
-      await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ ...existing, potatoTexOn: true }, null, 2), 'utf8');
+      await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ 
+        ...existing, 
+        potatoTexOn: true, 
+        darkOn: false,
+        selectedSky: 'Chill gray' // Guardar el skybox gris
+      }, null, 2), 'utf8');
     } catch (e) { log.warn('No se pudo persistir potato:', e.message); }
 
-    return { success: true, message: `Texturas potato aplicadas (${copied} archivos)` };
+    return { success: true, message: `Potato mode aplicado (${copied} texturas + skybox gris)` };
   } catch (error) {
     log.error('Error apply-potato-textures:', error);
     return { success: false, message: error.message };

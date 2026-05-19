@@ -29,10 +29,34 @@ const skyboxMap: Record<string, string> = {
   'emo': 'Emo',
 };
 
+type ApiResult = { success: boolean; message?: string }
+
 export const electronAPI = {
   // Verificar si estamos en Electron
   isElectron() {
-    return typeof window !== 'undefined' && (window as any).electronAPI;
+    return typeof window !== 'undefined' && !!window.electronAPI
+  },
+
+  async getAppVersion(): Promise<string | null> {
+    if (!this.isElectron()) return null
+    return (await window.electronAPI?.getAppVersion?.()) ?? null
+  },
+
+  async checkForUpdates(): Promise<ApiResult> {
+    if (!this.isElectron()) return { success: false, message: "No disponible en modo web" }
+    const r = await window.electronAPI?.checkForUpdates?.()
+    return (r as ApiResult) ?? { success: true }
+  },
+
+  async resizeWindow(mode: string): Promise<ApiResult> {
+    if (!this.isElectron()) return { success: false, message: "No disponible en modo web" }
+    const r = await window.electronAPI?.resizeWindow?.(mode)
+    return (r as ApiResult) ?? { success: true }
+  },
+
+  async launchRoblox(executorId: string, customPath?: string): Promise<ApiResult> {
+    if (!this.isElectron()) return { success: false, message: "No disponible en modo web" }
+    return await window.electronAPI!.launchRoblox(executorId, customPath)
   },
 
   // Aplicar cielo por ID
@@ -42,7 +66,7 @@ export const electronAPI = {
       return { success: true, message: 'Cielo aplicado (modo web)' };
     }
     
-    const api = (window as any).electronAPI;
+    const api = window.electronAPI!;
     const folderName = skyboxMap[skyId] || skyId;
     
     console.log(`Aplicando skybox: ${skyId} -> ${folderName}`);
@@ -56,7 +80,7 @@ export const electronAPI = {
       return { success: true, message: enabled ? 'Texturas oscuras activadas' : 'Texturas restauradas' };
     }
     
-    const api = (window as any).electronAPI;
+    const api = window.electronAPI!;
     if (enabled) {
       return await api.applyBlackTextures(texturePath);
     } else {
@@ -71,7 +95,7 @@ export const electronAPI = {
       return { success: true, message: 'Cielo personalizado aplicado' };
     }
     
-    const api = (window as any).electronAPI;
+    const api = window.electronAPI!;
     return await api.applyCustomSky(imagePath, texturePath);
   },
 
@@ -82,7 +106,7 @@ export const electronAPI = {
       return { success: false, message: 'No disponible en modo web' };
     }
     
-    const api = (window as any).electronAPI;
+    const api = window.electronAPI!;
     return await api.selectSkyImage();
   },
 
@@ -95,7 +119,7 @@ export const electronAPI = {
       };
     }
     
-    const api = (window as any).electronAPI;
+    const api = window.electronAPI!;
     return await api.getDefaultPaths();
   },
 
@@ -109,7 +133,7 @@ export const electronAPI = {
       };
     }
     
-    const api = (window as any).electronAPI;
+    const api = window.electronAPI!;
     return await api.verifyRobloxPath(path);
   },
 
@@ -125,7 +149,7 @@ export const electronAPI = {
       };
     }
     
-    const api = (window as any).electronAPI;
+    const api = window.electronAPI!;
     return await api.detectExecutors();
   },
 
@@ -140,7 +164,7 @@ export const electronAPI = {
       };
     }
     
-    const api = (window as any).electronAPI;
+    const api = window.electronAPI!;
     return await api.getExecutorTexturePath(executorId, customPath);
   },
 
@@ -151,7 +175,7 @@ export const electronAPI = {
       return;
     }
     
-    const api = (window as any).electronAPI;
+    const api = window.electronAPI!;
     // Usar el handler IPC open-external que llama shell.openExternal de forma segura
     if (api.openExternal) {
       await api.openExternal(url);
@@ -167,7 +191,7 @@ export const electronAPI = {
       return { success: true, message: 'Texturas restauradas (modo web)' };
     }
     
-    const api = (window as any).electronAPI;
+    const api = window.electronAPI!;
     return await api.restoreOriginal(texturePath);
   },
 
@@ -177,21 +201,21 @@ export const electronAPI = {
       console.log('Simulando instancia extra');
       return { success: true, message: 'Instancia extra (modo web)' };
     }
-    const api = (window as any).electronAPI;
+    const api = window.electronAPI!;
     return await api.launchExtraInstance(executorId, customPath);
   },
 
   // Guardar configuración persistente de la app
   async saveAppConfig(config: Record<string, unknown>) {
     if (!this.isElectron()) return { success: true };
-    const api = (window as any).electronAPI;
+    const api = window.electronAPI!;
     return await api.saveAppConfig(config);
   },
 
   // Cargar configuración persistente de la app
   async loadAppConfig() {
     if (!this.isElectron()) return { success: true, config: {} };
-    const api = (window as any).electronAPI;
+    const api = window.electronAPI!;
     return await api.loadAppConfig();
   },
 };

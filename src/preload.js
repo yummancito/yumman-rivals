@@ -38,6 +38,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Aplicar skybox por nombre de carpeta
   applySkyboxByName: (skyboxName, texturePath) => ipcRenderer.invoke('apply-skybox-by-name', skyboxName, texturePath),
   
+  // Alias para compatibilidad con el frontend
+  applySky: (skyboxName, texturePath) => ipcRenderer.invoke('apply-skybox-by-name', skyboxName, texturePath),
+  
   // Obtener ruta de preview
   getPreviewPath: () => ipcRenderer.invoke('get-preview-path'),
   
