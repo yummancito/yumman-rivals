@@ -77,16 +77,30 @@ export function HomeView({ onSettings }: HomeViewProps) {
     setIsCheckingUpdate(true)
     setUpdateMessage(null)
     try {
+      // 1. Verificar actualizaciones de la app
       await electronAPI.checkForUpdates()
-      // El mensaje vendrá del listener onUpdateStatus
-      // Si no viene mensaje en 2 segundos, mostrar mensaje genérico
-      setTimeout(() => {
-        if (!updateMessage) {
-          setUpdateMessage("✓ Verificación completada")
-          setTimeout(() => setUpdateMessage(null), 3000)
+      
+      // 2. Verificar recursos
+      const resourcesResult = await electronAPI.checkAndUpdateResources()
+      
+      if (resourcesResult?.needsDownload) {
+        // Si necesita descargar recursos, hacerlo
+        setUpdateMessage("Descargando recursos...")
+        const downloadResult = await electronAPI.forceDownloadResources()
+        
+        if (downloadResult?.success) {
+          setUpdateMessage("✓ Recursos actualizados")
+        } else {
+          setUpdateMessage("✗ Error descargando recursos")
         }
-      }, 2000)
-    } catch {
+      } else if (resourcesResult?.success) {
+        setUpdateMessage("✓ Todo actualizado")
+      } else {
+        setUpdateMessage("✗ Error verificando recursos")
+      }
+      
+      setTimeout(() => setUpdateMessage(null), 4000)
+    } catch (error) {
       setUpdateMessage("✗ Error al verificar")
       setTimeout(() => setUpdateMessage(null), 3000)
     } finally {

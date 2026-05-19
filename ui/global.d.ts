@@ -5,6 +5,8 @@ type ElectronApiFn = (...args: any[]) => any
 interface ElectronAPI {
   getAppVersion: () => Promise<string>
   checkForUpdates: ElectronApiFn
+  checkAndUpdateResources: ElectronApiFn
+  forceDownloadResources: ElectronApiFn
   resizeWindow: ElectronApiFn
   openExternal: ElectronApiFn
   launchRoblox: ElectronApiFn

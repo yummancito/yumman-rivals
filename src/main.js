@@ -1383,6 +1383,88 @@ ipcMain.handle('check-for-updates', () => {
   return { success: false, message: 'Updater no inicializado' };
 });
 
+// Handler para verificar y actualizar recursos
+ipcMain.handle('check-and-update-resources', async () => {
+  try {
+    log.info('Verificando recursos...');
+    
+    // Verificar si los recursos existen
+    const resourcesExist = await resourceDownloader.checkResources();
+    
+    if (!resourcesExist) {
+      log.info('Recursos no encontrados, descargando...');
+      return { 
+        success: false, 
+        needsDownload: true,
+        message: 'Recursos no encontrados. Descargando...' 
+      };
+    }
+    
+    // TODO: Aquí podrías agregar lógica para verificar versión de recursos
+    // Por ahora, asumimos que si existen están actualizados
+    log.info('Recursos verificados correctamente');
+    return { 
+      success: true, 
+      needsDownload: false,
+      message: 'Recursos actualizados' 
+    };
+    
+  } catch (error) {
+    log.error('Error verificando recursos:', error);
+    return { 
+      success: false, 
+      needsDownload: false,
+      message: 'Error al verificar recursos' 
+    };
+  }
+});
+
+// Handler para forzar descarga de recursos
+ipcMain.handle('force-download-resources', async () => {
+  try {
+    log.info('Forzando descarga de recursos...');
+    
+    // Crear ventana de descarga si no existe
+    if (!downloadWindow || downloadWindow.isDestroyed()) {
+      createDownloadWindow();
+    }
+    
+    downloadWindow.show();
+    
+    // Descargar recursos
+    await resourceDownloader.downloadResources(
+      (percent) => {
+        if (downloadWindow && !downloadWindow.isDestroyed()) {
+          downloadWindow.webContents.send('download-progress', percent);
+        }
+      },
+      (status) => {
+        if (downloadWindow && !downloadWindow.isDestroyed()) {
+          downloadWindow.webContents.send('download-status', status);
+        }
+      }
+    );
+    
+    // Actualizar RESOURCES_PATH después de descargar
+    if (isPackaged) {
+      RESOURCES_PATH = resourceDownloader.getResourcesPath();
+    }
+    
+    // Cerrar ventana de descarga
+    if (downloadWindow && !downloadWindow.isDestroyed()) {
+      setTimeout(() => {
+        downloadWindow.close();
+      }, 2000);
+    }
+    
+    return { success: true, message: 'Recursos descargados correctamente' };
+    
+  } catch (error) {
+    log.error('Error descargando recursos:', error);
+    return { success: false, message: `Error: ${error.message}` };
+  }
+});
+
 // Handler para obtener versión de la app
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();

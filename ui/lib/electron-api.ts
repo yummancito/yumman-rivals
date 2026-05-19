@@ -48,6 +48,18 @@ export const electronAPI = {
     return (r as ApiResult) ?? { success: true }
   },
 
+  async checkAndUpdateResources(): Promise<ApiResult> {
+    if (!this.isElectron()) return { success: false, message: "No disponible en modo web" }
+    const r = await window.electronAPI?.checkAndUpdateResources?.()
+    return (r as ApiResult) ?? { success: true }
+  },
+
+  async forceDownloadResources(): Promise<ApiResult> {
+    if (!this.isElectron()) return { success: false, message: "No disponible en modo web" }
+    const r = await window.electronAPI?.forceDownloadResources?.()
+    return (r as ApiResult) ?? { success: true }
+  },
+
   async resizeWindow(mode: string): Promise<ApiResult> {
     if (!this.isElectron()) return { success: false, message: "No disponible en modo web" }
     const r = await window.electronAPI?.resizeWindow?.(mode)
