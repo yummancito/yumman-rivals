@@ -30,6 +30,8 @@ const TIPS = [
 
 export function HomeView({ onSettings }: HomeViewProps) {
   const [launchState, setLaunchState] = useState<LaunchState>("idle")
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null)
   const [tipIdx, setTipIdx]           = useState(() => Math.floor(Math.random() * TIPS.length))
   const [tipVis, setTipVis]           = useState(true)
   const [version, setVersion]         = useState("—")
@@ -59,6 +61,22 @@ export function HomeView({ onSettings }: HomeViewProps) {
     } catch {
       setLaunchState("error")
       setTimeout(() => setLaunchState("idle"), 3000)
+    }
+  }
+
+  const handleCheckUpdate = async () => {
+    if (isCheckingUpdate) return
+    setIsCheckingUpdate(true)
+    setUpdateMessage(null)
+    try {
+      await electronAPI.checkForUpdates()
+      setUpdateMessage("✓ Verificación completada")
+      setTimeout(() => setUpdateMessage(null), 3000)
+    } catch {
+      setUpdateMessage("✗ Error al verificar")
+      setTimeout(() => setUpdateMessage(null), 3000)
+    } finally {
+      setTimeout(() => setIsCheckingUpdate(false), 1000)
     }
   }
 
@@ -249,6 +267,42 @@ export function HomeView({ onSettings }: HomeViewProps) {
             onClick={onSettings}
             delay={0.16}
           />
+
+          {/* Buscar actualizaciones */}
+          <motion.button
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.22, duration: 0.32 }}
+            whileHover={{ x: 2 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleCheckUpdate}
+            disabled={isCheckingUpdate}
+            style={{
+              display: "flex", alignItems: "center",
+              width: "100%", padding: "14px 18px",
+              borderRadius: 10, cursor: isCheckingUpdate ? "not-allowed" : "pointer",
+              border: "1px solid rgba(255,255,255,0.07)",
+              background: "rgba(255,255,255,0.03)",
+              transition: "all 0.15s", gap: 14,
+              opacity: isCheckingUpdate ? 0.5 : 1,
+            }}
+            onMouseEnter={e => { if (!isCheckingUpdate) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.12)" } }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.07)" }}
+          >
+            <div style={{ color: "#888580", flexShrink: 0, width: 20, display: "flex", justifyContent: "center" }}>
+              {isCheckingUpdate ? <Loader2 size={18} className="animate-spin" /> : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              )}
+            </div>
+            <span style={{ flex: 1, textAlign: "left", color: "#C8C8C8", fontSize: 14, fontWeight: 500, letterSpacing: "-0.01em" }}>
+              {updateMessage || (isCheckingUpdate ? "Verificando..." : "Buscar actualizaciones")}
+            </span>
+            <ChevronRight size={16} style={{ color: "#444240", flexShrink: 0 }} />
+          </motion.button>
 
         </div>
       </div>

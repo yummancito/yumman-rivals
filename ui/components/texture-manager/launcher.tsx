@@ -38,8 +38,10 @@ const TR = {
     launch: "Iniciar Roblox", launchSub: "Lanza el juego con tus ajustes",
     configure: "Configuración", configureSub: "Cielos, texturas, fuentes y flags",
     install: "Instalar / Actualizar Roblox",
+    updateApp: "Buscar actualizaciones de YUMMAN",
     launching: "Iniciando...", launched: "¡Listo!", launchErr: "Error",
     installing: "Instalando...",
+    checkingUpdate: "Verificando...",
     back: "Atrás", config: "Configuración",
     sky: "Cielos", textures: "Texturas", fonts: "Fuentes", potato: "Potato", flags: "Fast Flags",
     selectSky: "Selecciona un cielo para aplicar",
@@ -67,8 +69,10 @@ const TR = {
     launch: "Launch Roblox", launchSub: "Start the game with your settings",
     configure: "Settings", configureSub: "Skies, textures, fonts and flags",
     install: "Install / Update Roblox",
+    updateApp: "Check for YUMMAN updates",
     launching: "Launching...", launched: "Done!", launchErr: "Error",
     installing: "Installing...",
+    checkingUpdate: "Checking...",
     back: "Back", config: "Settings",
     sky: "Skies", textures: "Textures", fonts: "Fonts", potato: "Potato", flags: "Fast Flags",
     selectSky: "Select a sky to apply",
@@ -101,6 +105,7 @@ export function Launcher() {
   const [texturePath, setTexturePath] = useState("")
   const [launchState, setLaunchState] = useState<LaunchState>("idle")
   const [isInstalling, setIsInstalling] = useState(false)
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
   const [appVersion, setAppVersion] = useState("—")
 
   // Sky
@@ -195,6 +200,18 @@ export function Launcher() {
       // ignorar — el instalador se lanza en background
     } finally {
       setTimeout(() => setIsInstalling(false), 4000)
+    }
+  }
+
+  const handleCheckUpdate = async () => {
+    if (isCheckingUpdate) return
+    setIsCheckingUpdate(true)
+    try {
+      await api?.checkForUpdates?.()
+    } catch {
+      // ignorar — el updater maneja los errores
+    } finally {
+      setTimeout(() => setIsCheckingUpdate(false), 3000)
     }
   }
 
@@ -593,6 +610,15 @@ export function Launcher() {
                   {isInstalling ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#888580]" /> : <Download className="h-3.5 w-3.5 text-[#666360] group-hover:text-[#AEAEAE] transition-colors" />}
                   <p className="text-xs text-[#888580] group-hover:text-[#BBBBBB] transition-colors">
                     {isInstalling ? tr.installing : tr.install}
+                  </p>
+                </button>
+
+                {/* Update YUMMAN */}
+                <button onClick={handleCheckUpdate} disabled={isCheckingUpdate}
+                  className="group flex items-center gap-3 rounded-xl border border-[#2E2C28] px-4 py-2.5 transition-all hover:border-[#3A3835] hover:bg-[#252320] disabled:opacity-40">
+                  {isCheckingUpdate ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#888580]" /> : <Download className="h-3.5 w-3.5 text-[#666360] group-hover:text-[#AEAEAE] transition-colors" />}
+                  <p className="text-xs text-[#888580] group-hover:text-[#BBBBBB] transition-colors">
+                    {isCheckingUpdate ? tr.checkingUpdate : tr.updateApp}
                   </p>
                 </button>
 
