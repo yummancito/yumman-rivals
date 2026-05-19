@@ -1,6 +1,6 @@
 {
   "name": "yumman-rivals",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "YUMMAN RIVALS - Roblox Texture Manager",
   "main": "src/main.js",
   "scripts": {
