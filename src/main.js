@@ -66,8 +66,8 @@ const DEFAULT_PATHS = {
   fishtrap: path.join(os.homedir(), 'AppData', 'Local', 'Fishstrap', 'Versions'), // Alias
   bloxtrap: path.join(os.homedir(), 'AppData', 'Local', 'Bloxtrap', 'Versions'),
   // Carpeta propia de YUMMAN RIVALS — aquí se guardan texturas y versiones
-  yumman: path.join(os.homedir(), 'AppData', 'Local', 'YUMMAN RIVALS', 'Versions'),
-  texturesBackup: path.join(app.getPath('userData'), 'backup'),
+  yumman: path.join(os.homedir(), 'AppData', 'Local', 'YUMMAN RIVALS', 'Roblox', 'Versions'),
+  texturesBackup: path.join(RESOURCES_PATH, 'textures', 'DARK OFF'),
   customSkybox: path.join(app.getPath('userData'), 'custom_skybox'),
   previews: path.join(app.getPath('userData'), 'previews'),
   // Recursos empaquetados
@@ -76,6 +76,86 @@ const DEFAULT_PATHS = {
   textures: TEXTURES_PATH,
   uiImages: UI_IMAGES_PATH
 };
+
+// Carpeta base de YUMMAN RIVALS donde se guardan todos los ajustes
+// Estructura: %LOCALAPPDATA%\YUMMAN RIVALS\
+const YUMMAN_RIVALS_PATH = path.join(os.homedir(), 'AppData', 'Local', 'YUMMAN RIVALS');
+const YUMMAN_RIVALS_VERSIONS_PATH = path.join(YUMMAN_RIVALS_PATH, 'Versions');
+const YUMMAN_RIVALS_CLIENT_SETTINGS = path.join(YUMMAN_RIVALS_PATH, 'ClientSettings', 'ClientAppSettings.json');
+
+// Ruta de configuración persistente de la app
+const APP_CONFIG_PATH = path.join(YUMMAN_RIVALS_PATH, 'app-config.json');
+const APP_CONFIG_LOCK_PATH = path.join(YUMMAN_RIVALS_PATH, 'app-config.lock');
+
+// Función helper para escribir en config con locking simple
+async function writeAppConfigWithLock(data) {
+  const maxRetries = 5;
+  const retryDelay = 100; // ms
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      // Intentar crear archivo de lock
+      const lockData = { pid: process.pid, timestamp: Date.now() };
+      await fs.writeFile(APP_CONFIG_LOCK_PATH, JSON.stringify(lockData), { flag: 'wx' });
+
+      // Lock adquirido, escribir config
+      await fs.writeFile(APP_CONFIG_PATH, JSON.stringify(data, null, 2), 'utf8');
+
+      // Liberar lock
+      await fs.unlink(APP_CONFIG_LOCK_PATH);
+      return { success: true };
+    } catch (error) {
+      if (error.code === 'EEXIST') {
+        // Lock ya existe, esperar y reintentar
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        continue;
+      }
+      // Otro error, liberar lock si existe y retornar error
+      try { await fs.unlink(APP_CONFIG_LOCK_PATH); } catch (e) { /* ignore */ }
+      throw error;
+    }
+  }
+
+  throw new Error('No se pudo adquirir lock después de ' + maxRetries + ' intentos');
+}
+
+// Verificar si Roblox está ejecutándose
+async function isRobloxRunning() {
+  const { exec } = require('child_process');
+  const { promisify } = require('util');
+  const execAsync = promisify(exec);
+
+  try {
+    // Verificar si hay procesos de Roblox corriendo
+    const result = await execAsync('tasklist /FI "IMAGENAME eq RobloxPlayerBeta.exe"');
+    return result.stdout.includes('RobloxPlayerBeta.exe');
+  } catch (error) {
+    // Si falla el comando, asumir que no está corriendo
+    return false;
+  }
+}
+
+// Cerrar Roblox
+async function closeRoblox() {
+  const { exec } = require('child_process');
+  const { promisify } = require('util');
+  const execAsync = promisify(exec);
+
+  try {
+    // Cerrar todos los procesos de Roblox
+    await execAsync('taskkill /F /IM RobloxPlayerBeta.exe');
+    log.info('Roblox cerrado');
+    return { success: true };
+  } catch (error) {
+    // Si no hay procesos, es un éxito
+    if (error.message.includes('not found') || error.message.includes('no se encontr')) {
+      log.info('Roblox no estaba corriendo');
+      return { success: true };
+    }
+    log.error('Error cerrando Roblox:', error);
+    return { success: false, message: error.message };
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -87,8 +167,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js'),
-      webSecurity: false
+      preload: path.join(__dirname, 'preload.js')
     },
     autoHideMenuBar: true,
     icon: path.join(__dirname, '..', 'icon.ico'),
@@ -98,9 +177,17 @@ function createWindow() {
     center: true,
   });
 
-  // Desarrollo: cargar Next.js dev server
+  // Desarrollo: cargar desde archivos estáticos compilados
   if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:3000');
+    const uiPath = path.join(__dirname, '..', 'ui', 'out', 'index.html');
+    console.log('Modo desarrollo - Cargando UI desde:', uiPath);
+    console.log('Archivo existe:', fs.existsSync(uiPath));
+    
+    if (fs.existsSync(uiPath)) {
+      mainWindow.loadFile(uiPath);
+    } else {
+      mainWindow.loadURL('data:text/html,<h1 style="color:white;font-family:sans-serif;text-align:center;margin-top:100px;">Error: Ejecuta "npm run build:ui" primero</h1>');
+    }
     mainWindow.webContents.openDevTools();
   } else {
     // Producción: usar nueva interfaz
@@ -500,6 +587,11 @@ ipcMain.handle('create-backup', async (event, texturePath) => {
     
     return { success: true, message: 'Backup creado correctamente' };
   } catch (error) {
+    log.error('Error creando backup:', error);
+    // Verificar si es error de permisos
+    if (error.code === 'EACCES' || error.code === 'EPERM') {
+      return { success: false, message: 'Error de permisos: Ejecuta la app como administrador' };
+    }
     return { success: false, message: error.message };
   }
 });
@@ -525,7 +617,16 @@ async function ensureTexturesBackup(texturePath) {
 ipcMain.handle('apply-black-textures', async (event, texturePath) => {
   try {
     console.log('=== APLICANDO TEXTURAS NEGRAS ===');
-    
+
+    // Cerrar Roblox si está corriendo
+    const robloxRunning = await isRobloxRunning();
+    if (robloxRunning) {
+      log.info('Roblox está corriendo, cerrando...');
+      await closeRoblox();
+      // Esperar un momento para que Roblox se cierre completamente
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
     if (!texturePath || !fs.existsSync(texturePath)) {
       return { success: false, message: `Ruta de texturas no válida: ${texturePath}` };
     }
@@ -566,7 +667,7 @@ ipcMain.handle('apply-black-textures', async (event, texturePath) => {
         ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
         : {};
       await fs.ensureDir(YUMMAN_RIVALS_PATH);
-      await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ ...existing, darkOn: true, potatoTexOn: false }, null, 2), 'utf8');
+      await writeAppConfigWithLock({ ...existing, darkOn: true, potatoTexOn: false });
     } catch (e) { log.warn('No se pudo persistir darkOn:', e.message); }
 
     return { success: true, message: `Texturas negras aplicadas: ${copiedCount} items` };
@@ -581,9 +682,20 @@ ipcMain.handle('apply-dark-textures', async (event, enabled, texturePath) => {
   try {
     console.log('=== APLICANDO/DESACTIVANDO TEXTURAS OSCURAS ===');
     console.log('Enabled:', enabled);
+    console.log('Tipo de enabled:', typeof enabled);
     console.log('Texture Path:', texturePath);
-    
+
+    // Cerrar Roblox si está corriendo (tanto para activar como desactivar)
+    const robloxRunning = await isRobloxRunning();
+    if (robloxRunning) {
+      log.info('Roblox está corriendo, cerrando...');
+      await closeRoblox();
+      // Esperar un momento para que Roblox se cierre completamente
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
     if (enabled) {
+      log.info('=== ACTIVANDO TEXTURAS OSCURAS ===');
       // Aplicar texturas oscuras (reutilizar lógica de apply-black-textures)
       if (!texturePath || !fs.existsSync(texturePath)) {
         return { success: false, message: `Ruta de texturas no válida: ${texturePath}` };
@@ -604,7 +716,7 @@ ipcMain.handle('apply-dark-textures', async (event, enabled, texturePath) => {
       let copiedCount = 0;
       
       for (const item of items) {
-        // ✅ SKIP: No copiar la carpeta sky (los cielos se aplican por separado)
+        // Skip: No copiar la carpeta sky (los cielos se aplican por separado)
         if (item === 'sky') {
           log.info('Saltando carpeta sky (los cielos se aplican por separado)');
           continue;
@@ -626,17 +738,17 @@ ipcMain.handle('apply-dark-textures', async (event, enabled, texturePath) => {
       
       log.info(`Texturas oscuras aplicadas: ${copiedCount}/${items.length}`);
       
-      // ✅ PERSISTIR ESTADO ACTIVADO
+      // Persistir estado activado
       try {
         const existing = fs.existsSync(APP_CONFIG_PATH)
           ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
           : {};
         await fs.ensureDir(YUMMAN_RIVALS_PATH);
-        await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ 
+        await writeAppConfigWithLock({ 
           ...existing, 
           darkOn: true, 
           potatoTexOn: false 
-        }, null, 2), 'utf8');
+        });
         log.info('Estado darkOn=true persistido');
       } catch (e) { 
         log.warn('No se pudo persistir darkOn:', e.message); 
@@ -647,27 +759,59 @@ ipcMain.handle('apply-dark-textures', async (event, enabled, texturePath) => {
       // Desactivar texturas oscuras (restaurar originales)
       const backupPath = DEFAULT_PATHS.texturesBackup;
       
+      log.info('Backup path:', backupPath);
+      log.info('Backup existe:', fs.existsSync(backupPath));
+      
       if (!fs.existsSync(backupPath)) {
+        log.error('No se encontró backup de texturas originales');
         return { success: false, message: 'No se encontró backup de texturas originales' };
       }
 
+      log.info('Texture path:', texturePath);
+      log.info('Texture path existe:', fs.existsSync(texturePath));
+
       const { exec } = require('child_process');
+      log.info('Quitando read-only de texturas...');
       await new Promise(resolve => exec(`attrib -R "${texturePath}" /S /D`, () => resolve()));
-      await fs.copy(backupPath, texturePath, { overwrite: true });
       
-      log.info('Texturas originales restauradas');
+      // Copiar backup excluyendo la carpeta sky (mantener cielo actual del cliente)
+      const backupItems = fs.readdirSync(backupPath);
+      let copiedCount = 0;
       
-      // ✅ PERSISTIR ESTADO DESACTIVADO
+      for (const item of backupItems) {
+        // ✅ SKIP: No copiar la carpeta sky (mantener cielo actual del cliente)
+        if (item === 'sky') {
+          log.info('Saltando carpeta sky (manteniendo cielo actual del cliente)');
+          continue;
+        }
+        
+        const sourcePath = path.join(backupPath, item);
+        const destPath = path.join(texturePath, item);
+        
+        try {
+          await fs.copy(sourcePath, destPath, { overwrite: true });
+          copiedCount++;
+          log.info(`Copiado: ${item}`);
+        } catch (error) {
+          log.warn(`Error copiando ${item}:`, error.message);
+        }
+      }
+      
+      log.info(`Copia completada: ${copiedCount}/${backupItems.length} items`);
+      
+      log.info('Texturas originales restauradas (cielo mantenido)');
+      
+      // Persistir estado desactivado
       try {
         const existing = fs.existsSync(APP_CONFIG_PATH)
           ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
           : {};
         await fs.ensureDir(YUMMAN_RIVALS_PATH);
-        await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ 
+        await writeAppConfigWithLock({ 
           ...existing, 
           darkOn: false, 
           potatoTexOn: false 
-        }, null, 2), 'utf8');
+        });
         log.info('Estado darkOn=false persistido');
       } catch (e) { 
         log.warn('No se pudo persistir darkOn=false:', e.message); 
@@ -719,6 +863,15 @@ ipcMain.handle('apply-dark-sky', async (event, texturePath) => {
 // Restaurar texturas originales
 ipcMain.handle('restore-original', async (event, texturePath) => {
   try {
+    // Cerrar Roblox si está corriendo
+    const robloxRunning = await isRobloxRunning();
+    if (robloxRunning) {
+      log.info('Roblox está corriendo, cerrando...');
+      await closeRoblox();
+      // Esperar un momento para que Roblox se cierre completamente
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
     const backupPath = DEFAULT_PATHS.texturesBackup;
     
     if (!fs.existsSync(backupPath)) {
@@ -740,7 +893,7 @@ ipcMain.handle('restore-original', async (event, texturePath) => {
               ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
               : {};
             await fs.ensureDir(YUMMAN_RIVALS_PATH);
-            await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ ...existing, darkOn: false, potatoTexOn: false, potatoOn: false }, null, 2), 'utf8');
+            await writeAppConfigWithLock({ ...existing, darkOn: false, potatoTexOn: false, potatoOn: false });
           } catch (e) {}
           return { success: true, message: 'Restauración iniciada. Roblox se reinstalará para volver a fábrica.' };
         }
@@ -757,7 +910,7 @@ ipcMain.handle('restore-original', async (event, texturePath) => {
         ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
         : {};
       await fs.ensureDir(YUMMAN_RIVALS_PATH);
-      await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ ...existing, darkOn: false, potatoTexOn: false, potatoOn: false }, null, 2), 'utf8');
+      await writeAppConfigWithLock({ ...existing, darkOn: false, potatoTexOn: false, potatoOn: false });
     } catch (e) {}
     
     return { success: true, message: 'Texturas originales restauradas' };
@@ -971,10 +1124,18 @@ ipcMain.handle('get-executor-texture-path', async (event, executorId, customPath
     console.log('Ruta personalizada:', customPath);
     
     let basePath;
-    
-    // Si hay ruta personalizada, usarla
+
+    // Si hay ruta personalizada, usarla con validación
     if (customPath && executorId === 'other') {
-      basePath = customPath;
+      // Normalizar y validar la ruta para prevenir path traversal
+      basePath = path.normalize(customPath);
+      // Verificar que la ruta no contiene caracteres peligrosos
+      if (basePath.includes('..') || basePath.includes('~') || !path.isAbsolute(basePath)) {
+        return {
+          valid: false,
+          message: 'Ruta inválida: solo se permiten rutas absolutas'
+        };
+      }
     } else {
       // Usar ruta predefinida según el ejecutor
       basePath = DEFAULT_PATHS[executorId] || DEFAULT_PATHS.roblox;
@@ -1049,11 +1210,12 @@ async function applyRbxStorageAssets() {
   try {
     console.log('=== EJECUTANDO MOVE-SILENT.BAT (SKYFIX) ===');
     log.info('=== EJECUTANDO MOVE-SILENT.BAT (SKYFIX) ===');
-    
+
     const { exec } = require('child_process');
     const { promisify } = require('util');
+    const crypto = require('crypto');
     const execAsync = promisify(exec);
-    
+
     // Buscar el bat en múltiples ubicaciones
     const possibleBatPaths = [
       path.join(app.getPath('userData'), 'resources', 'move-silent.bat'),
@@ -1079,10 +1241,24 @@ async function applyRbxStorageAssets() {
       return { success: false, message: 'move-silent.bat no encontrado' };
     }
 
+    // Verificar hash del archivo para prevenir ejecución de código malicioso
+    const expectedHash = '332E57886186E1E391BDAEEE8B57C779941AC889D25E3EDA20B0B3B7C5C459A3';
+    const fileBuffer = await fs.readFile(batPath);
+    const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex').toUpperCase();
+
+    if (fileHash !== expectedHash) {
+      console.error('❌ Hash del archivo .bat no coincide. Archivo puede estar corrupto o modificado.');
+      log.error('Hash del archivo .bat no coincide. Esperado:', expectedHash, 'Obtenido:', fileHash);
+      return { success: false, message: 'move-silent.bat no pasó verificación de seguridad' };
+    }
+
+    console.log('✓ Hash verificado correctamente');
+    log.info('Hash del archivo .bat verificado correctamente');
+
     // Ejecutar el bat silenciosamente
     console.log('Ejecutando bat silenciosamente...');
     const batDir = path.dirname(batPath);
-    await execAsync(`"${batPath}"`, { 
+    await execAsync(`"${batPath}"`, {
       shell: 'cmd.exe',
       windowsHide: true,
       cwd: batDir
@@ -1116,6 +1292,20 @@ async function applySkyboxToPath(skyboxPath, texFiles, texturePath) {
       exec(`attrib -R "${skyPath}" /S /D`, () => resolve());
     });
     
+    // Eliminar archivos indoor512_*.tex (archivos originales de Roblox que interfieren con skyboxes personalizados)
+    try {
+      const existingFiles = fs.readdirSync(skyPath);
+      for (const file of existingFiles) {
+        if (file.startsWith('indoor512_') && file.endsWith('.tex')) {
+          const filePath = path.join(skyPath, file);
+          await fs.remove(filePath);
+          log.info(`Eliminado archivo original: ${file}`);
+        }
+      }
+    } catch (error) {
+      log.warn('Error eliminando archivos indoor512_*.tex:', error.message);
+    }
+    
     // Copiar archivos .tex
     let copiedCount = 0;
     let failedFiles = [];
@@ -1148,7 +1338,7 @@ async function applySkyboxToPath(skyboxPath, texFiles, texturePath) {
       });
     });
     
-    // ✅ VALIDACIÓN: Si todos los archivos fallaron, considerar error
+    // Validación: Si todos los archivos fallaron, considerar error
     if (copiedCount === 0) {
       return {
         success: false,
@@ -1156,7 +1346,7 @@ async function applySkyboxToPath(skyboxPath, texFiles, texturePath) {
       };
     }
     
-    // ✅ VALIDACIÓN: Si faltan archivos críticos, advertir
+    // Validación: Si faltan archivos críticos, advertir
     if (copiedCount < 6) {
       log.warn(`⚠️ Skybox incompleto: solo ${copiedCount}/6 archivos copiados`);
     }
@@ -1183,7 +1373,18 @@ ipcMain.handle('apply-skybox-by-name', async (event, skyboxName, texturePath) =>
     console.log('Nombre del skybox:', skyboxName);
     console.log('Ruta de texturas:', texturePath);
     
-    const skyboxPath = path.join(SKYBOXES_PATH, skyboxName);
+    // Buscar la carpeta correcta ignorando mayúsculas/minúsculas
+    let skyboxPath = path.join(SKYBOXES_PATH, skyboxName);
+    if (!fs.existsSync(skyboxPath)) {
+      // Si no existe con el nombre exacto, buscar carpeta que coincida ignorando mayúsculas/minúsculas
+      const folders = fs.readdirSync(SKYBOXES_PATH);
+      const matchingFolder = folders.find(f => f.toLowerCase().replace(/\s+/g, '-') === skyboxName.toLowerCase());
+      if (matchingFolder) {
+        skyboxPath = path.join(SKYBOXES_PATH, matchingFolder);
+        console.log(`Carpeta encontrada con nombre diferente: ${matchingFolder}`);
+      }
+    }
+    
     console.log('Ruta del skybox:', skyboxPath);
     console.log('Skybox existe:', fs.existsSync(skyboxPath));
     
@@ -1211,27 +1412,18 @@ ipcMain.handle('apply-skybox-by-name', async (event, skyboxName, texturePath) =>
     }
 
     // =====================================================
-    // PASO 1: Aplicar via rbx-storage (método principal)
-    // Equivalente al move.bat - copia los .tex como hashes
-    // al rbx-storage de Roblox
+    // PASO 1: Aplicar hashes base al rbx-storage
+    // Roblox necesita estos hashes para cargar skyboxes personalizados
+    // Usamos los hashes del skyboxfix como base
     // =====================================================
-    log.info('Aplicando via rbx-storage...');
-    const rbxResult = await rbxStorage.applySkyboxFromTexFiles(skyboxPath);
-    log.info('Resultado rbx-storage:', rbxResult);
-
-    if (!rbxResult.success) {
-      log.warn('rbx-storage falló, usando método tradicional como fallback');
-      log.warn('Error rbx-storage:', rbxResult.message);
-    } else {
-      log.info('✓ rbx-storage aplicado correctamente');
-    }
-
-    // =====================================================
-    // PASO 2: Copiar assets fijos al rbx-storage
-    // Estos son los archivos del move.bat original
-    // =====================================================
-    log.info('Aplicando assets fijos al rbx-storage...');
+    log.info('Aplicando hashes base al rbx-storage...');
     await applyRbxStorageAssets();
+    
+    // =====================================================
+    // PASO 2: Aplicar skybox usando método tradicional
+    // Copiar archivos .tex a carpeta sky/ en todas las versiones
+    // =====================================================
+    log.info('Aplicando skybox via método tradicional (carpeta sky/)...');
     
     // DETECTAR SI HAY MÚLTIPLES VERSIONES Y APLICAR EN TODAS
     // Extraer el ejecutor de la ruta (Roblox, Fishstrap, Bloxtrap)
@@ -1267,7 +1459,7 @@ ipcMain.handle('apply-skybox-by-name', async (event, skyboxName, texturePath) =>
           if (result.success) {
             totalVersionsApplied++;
             versionsWithSky.push(version.name);
-            // ✅ Verificar si el skybox está completo
+            // Verificar si el skybox está completo
             if (!result.complete) {
               log.warn(`⚠️ Skybox incompleto en ${version.name}: ${result.filesApplied}/6 archivos`);
             }
@@ -1281,16 +1473,16 @@ ipcMain.handle('apply-skybox-by-name', async (event, skyboxName, texturePath) =>
       // Aplicar assets al rbx-storage (equivalente al move.bat)
       // Ya se hizo arriba, no repetir
       
-      // ✅ Persistir el skybox seleccionado
+      // Persistir el skybox seleccionado (usar el nombre exacto de la carpeta)
       try {
         const existing = fs.existsSync(APP_CONFIG_PATH)
           ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
           : {};
         await fs.ensureDir(YUMMAN_RIVALS_PATH);
-        await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ 
+        await writeAppConfigWithLock({ 
           ...existing, 
           selectedSky: skyboxName 
-        }, null, 2), 'utf8');
+        });
         log.info(`Skybox "${skyboxName}" guardado en configuración`);
       } catch (e) { 
         log.warn('No se pudo persistir selectedSky:', e.message); 
@@ -1400,7 +1592,7 @@ ipcMain.handle('check-and-update-resources', async () => {
       };
     }
     
-    // TODO: Aquí podrías agregar lógica para verificar versión de recursos
+    // Aquí podrías agregar lógica para verificar versión de recursos
     // Por ahora, asumimos que si existen están actualizados
     log.info('Recursos verificados correctamente');
     return { 
@@ -1516,8 +1708,7 @@ ipcMain.handle('open-settings-window', async () => {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        preload: path.join(__dirname, 'preload.js'),
-        webSecurity: false
+        preload: path.join(__dirname, 'preload.js')
       },
       autoHideMenuBar: true,
       icon: path.join(__dirname, '..', 'icon.ico'),
@@ -1562,21 +1753,158 @@ async function reapplyConfigBeforeLaunch(texturePath) {
     const config = JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8'));
     log.info('Re-aplicando configuración antes de lanzar:', JSON.stringify(config));
 
-    // Re-aplicar skybox si había uno seleccionado
+    // Primero restaurar texturas originales si darkOn es false (antes de re-aplicar skybox)
+    if (config.darkOn === false && texturePath && fs.existsSync(texturePath)) {
+      // Restaurar texturas originales si darkOn es false
+      const backupPath = DEFAULT_PATHS.texturesBackup;
+      if (fs.existsSync(backupPath)) {
+        log.info('Restaurando texturas originales (darkOn=false)...');
+        log.info('Backup path:', backupPath);
+        
+        // Restaurar SOLO en la instalación de YUMMAN RIVALS (no afectar Roblox normal)
+        const yummanVersionsPath = DEFAULT_PATHS.yumman;
+        if (fs.existsSync(yummanVersionsPath)) {
+          const versions = fs.readdirSync(yummanVersionsPath)
+            .filter(f => f.startsWith('version-'))
+            .map(f => ({
+              name: f,
+              path: path.join(yummanVersionsPath, f, 'PlatformContent', 'pc', 'textures')
+            }));
+          
+          log.info(`Encontradas ${versions.length} versiones en YUMMAN RIVALS`);
+          
+          for (const version of versions) {
+            if (!fs.existsSync(version.path)) continue;
+            
+            log.info(`Restaurando en ${version.name}...`);
+            log.info('Texture path:', version.path);
+            
+            const { exec } = require('child_process');
+            await new Promise(resolve => exec(`attrib -R "${version.path}" /S /D`, () => resolve()));
+            
+            // Borrar solo carpetas específicas de texturas oscuras (rust, sand, etc.)
+            const darkTextureFolders = ['rust', 'sand'];
+            for (const folder of darkTextureFolders) {
+              const folderPath = path.join(version.path, folder);
+              if (fs.existsSync(folderPath)) {
+                log.info(`Borrando carpeta de texturas oscuras: ${folder}`);
+                try {
+                  await fs.remove(folderPath);
+                } catch (error) {
+                  log.warn(`Error borrando ${folder}:`, error.message);
+                }
+              }
+            }
+            
+            // Copiar backup excluyendo la carpeta sky (mantener cielo actual del cliente)
+            const backupItems = fs.readdirSync(backupPath);
+            let copiedCount = 0;
+            let failedCount = 0;
+            
+            for (const item of backupItems) {
+              // Skip: No copiar la carpeta sky (mantener cielo actual del cliente)
+              if (item === 'sky') {
+                continue;
+              }
+              
+              // Skip: No copiar la carpeta ui (mantener puntero y otros elementos UI)
+              if (item === 'ui') {
+                continue;
+              }
+              
+              const sourcePath = path.join(backupPath, item);
+              const destPath = path.join(version.path, item);
+              
+              try {
+                await fs.copy(sourcePath, destPath, { overwrite: true });
+                copiedCount++;
+              } catch (error) {
+                failedCount++;
+                log.warn(`✗ Error copiando ${item} en ${version.name}:`, error.message);
+              }
+            }
+            
+            log.info(`Texturas originales restauradas en ${version.name}: ${copiedCount}/${backupItems.length} items (fallidos: ${failedCount})`);
+            
+            // Restaurar carpeta content/textures desde DARK OFF (contiene punteros y UI)
+            const contentTexturesBackup = path.join(backupPath, 'content');
+            // En YUMMAN RIVALS, los punteros están en PlatformContent/pc/textures/content
+            const contentTexturesPath = path.join(yummanVersionsPath, version.name, 'PlatformContent', 'pc', 'textures', 'content');
+            // También copiar a content/textures (ubicación normal de Roblox)
+            const contentTexturesPathNormal = path.join(yummanVersionsPath, version.name, 'content', 'textures');
+            
+            log.info(`Verificando content/textures backup: ${contentTexturesBackup} - Existe: ${fs.existsSync(contentTexturesBackup)}`);
+            log.info(`Verificando content/textures destino: ${contentTexturesPath} - Existe: ${fs.existsSync(contentTexturesPath)}`);
+            
+            if (fs.existsSync(contentTexturesBackup)) {
+              log.info(`Restaurando content/textures desde backup: ${contentTexturesBackup}`);
+              try {
+                // Copiar a PlatformContent/pc/textures/content
+                if (fs.existsSync(contentTexturesPath)) {
+                  await fs.remove(contentTexturesPath);
+                }
+                await fs.copy(contentTexturesBackup, contentTexturesPath, { overwrite: true });
+                log.info(`Content/textures restaurado en PlatformContent/pc/textures/content en ${version.name}`);
+                
+                // También copiar a content/textures (ubicación normal de Roblox)
+                if (fs.existsSync(contentTexturesPathNormal)) {
+                  await fs.remove(contentTexturesPathNormal);
+                }
+                await fs.copy(contentTexturesBackup, contentTexturesPathNormal, { overwrite: true });
+                log.info(`Content/textures restaurado en content/textures en ${version.name}`);
+              } catch (error) {
+                log.warn(`Error restaurando content/textures en ${version.name}:`, error.message);
+              }
+            } else {
+              // Si no hay backup, limpiar cache de texturas de Roblox
+              if (fs.existsSync(contentTexturesPath)) {
+                log.info(`Limpiando cache de texturas en ${contentTexturesPath}...`);
+                try {
+                  await fs.remove(contentTexturesPath);
+                  log.info(`Cache de texturas eliminado completamente en ${version.name}`);
+                } catch (error) {
+                  log.warn(`Error limpiando cache en ${version.name}:`, error.message);
+                }
+              }
+            }
+          }
+        } else {
+          log.warn('No se encontró instalación de YUMMAN RIVALS');
+        }
+      } else {
+        log.warn('Backup no encontrado para restaurar texturas originales');
+      }
+    }
+
+    // Re-aplicar skybox si había uno seleccionado (ANTES de re-aplicar dark textures)
+    log.info(`Verificando skybox: selectedSky=${config.selectedSky}, texturePath=${texturePath}, existe=${fs.existsSync(texturePath)}`);
     if (config.selectedSky && texturePath && fs.existsSync(texturePath)) {
       const skyboxName = config.selectedSky;
-      const skyboxPath = path.join(SKYBOXES_PATH, skyboxName);
+      // Buscar la carpeta correcta ignorando mayúsculas/minúsculas
+      let skyboxPath = path.join(SKYBOXES_PATH, skyboxName);
+      if (!fs.existsSync(skyboxPath)) {
+        const folders = fs.readdirSync(SKYBOXES_PATH);
+        const matchingFolder = folders.find(f => f.toLowerCase().replace(/\s+/g, '-') === skyboxName.toLowerCase());
+        if (matchingFolder) {
+          skyboxPath = path.join(SKYBOXES_PATH, matchingFolder);
+          log.info(`Carpeta encontrada con nombre diferente: ${matchingFolder}`);
+        }
+      }
+      log.info(`Skybox path: ${skyboxPath}, existe: ${fs.existsSync(skyboxPath)}`);
       if (fs.existsSync(skyboxPath)) {
         const texFiles = fs.readdirSync(skyboxPath).filter(f => f.endsWith('.tex'));
+        log.info(`Archivos .tex encontrados: ${texFiles.length}`);
         if (texFiles.length > 0) {
+          // Aplicar hashes base al rbx-storage (ejecutar move-silent.bat)
+          await applyRbxStorageAssets();
+          // Aplicar método tradicional (carpeta sky/)
           await applySkyboxToPath(skyboxPath, texFiles, texturePath);
-          await rbxStorage.applySkyboxFromTexFiles(skyboxPath);
           log.info('Skybox re-aplicado:', skyboxName);
         }
       }
     }
 
-    // Re-aplicar dark textures
+    // Re-aplicar dark textures (DESPUÉS del skybox para no sobrescribirlo)
     if (config.darkOn && texturePath && fs.existsSync(texturePath)) {
       const ruptikDarkPath = TEXTURES_PATH;
       if (fs.existsSync(ruptikDarkPath)) {
@@ -1634,7 +1962,8 @@ async function reapplyConfigBeforeLaunch(texturePath) {
       const fallbackDir = path.join(__dirname, '..', 'resources', 'fonts');
       const baseDir = fs.existsSync(fontsDir) ? fontsDir : fallbackDir;
       const fontSrc = path.join(baseDir, config.activeFont);
-      const robloxFontsPath = getRobloxFontsPath(DEFAULT_PATHS.roblox);
+      // Usar YUMMAN RIVALS para las fuentes
+      const robloxFontsPath = getRobloxFontsPath(DEFAULT_PATHS.yumman);
       if (fs.existsSync(fontSrc) && robloxFontsPath && fs.existsSync(robloxFontsPath)) {
         const { exec } = require('child_process');
         const robloxFontFiles = fs.readdirSync(robloxFontsPath).filter(f => f.endsWith('.ttf') || f.endsWith('.otf'));
@@ -1653,6 +1982,17 @@ async function reapplyConfigBeforeLaunch(texturePath) {
     log.warn('Error re-aplicando configuración:', error.message);
   }
 }
+
+// Cerrar Roblox
+ipcMain.handle('close-roblox', async () => {
+  try {
+    const result = await closeRoblox();
+    return result;
+  } catch (error) {
+    log.error('Error cerrando Roblox:', error);
+    return { success: false, message: error.message };
+  }
+});
 
 // Lanzar Roblox (sin Roblox Studio)
 ipcMain.handle('launch-roblox', async (event, executorId, customPath) => {
@@ -1758,8 +2098,8 @@ ipcMain.handle('launch-roblox', async (event, executorId, customPath) => {
       return { success: true, message: 'Roblox iniciado via deeplink', method: 'deeplink' };
     }
 
-    // Roblox Normal: buscar RobloxPlayerBeta.exe en la versión más reciente
-    const robloxVersionsPath = DEFAULT_PATHS.roblox;
+    // Roblox Normal: usar instalación de YUMMAN RIVALS como launcher
+    const robloxVersionsPath = DEFAULT_PATHS.yumman;
     if (fs.existsSync(robloxVersionsPath)) {
       const versions = fs.readdirSync(robloxVersionsPath)
         .filter(f => f.startsWith('version-'))
@@ -1865,12 +2205,6 @@ ipcMain.handle('install-roblox', async () => {
 });
 
 // ─── SISTEMA DE FLAGS (ClientAppSettings.json) ────────────────────────────────
-
-// Carpeta base de YUMMAN RIVALS donde se guardan todos los ajustes
-// Estructura: %LOCALAPPDATA%\YUMMAN RIVALS\Versions\<version>\
-const YUMMAN_RIVALS_PATH = path.join(os.homedir(), 'AppData', 'Local', 'YUMMAN RIVALS');
-const YUMMAN_RIVALS_VERSIONS_PATH = path.join(YUMMAN_RIVALS_PATH, 'Versions');
-const YUMMAN_RIVALS_CLIENT_SETTINGS = path.join(YUMMAN_RIVALS_PATH, 'ClientSettings', 'ClientAppSettings.json');
 
 /**
  * Devuelve la ruta del ClientAppSettings.json.
@@ -2015,7 +2349,7 @@ ipcMain.handle('apply-potato-textures', async (event, texturePath) => {
     
     log.info(`Texturas potato aplicadas: ${copied}/${files.length}`);
 
-    // ✅ APLICAR SKYBOX GRIS (Chill gray) para potato mode
+    // Aplicar skybox gris (Chill gray) para potato mode
     try {
       const graySkyPath = path.join(SKYBOXES_PATH, 'Chill gray');
       if (fs.existsSync(graySkyPath)) {
@@ -2040,12 +2374,12 @@ ipcMain.handle('apply-potato-textures', async (event, texturePath) => {
         ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
         : {};
       await fs.ensureDir(YUMMAN_RIVALS_PATH);
-      await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ 
+      await writeAppConfigWithLock({ 
         ...existing, 
         potatoTexOn: true, 
         darkOn: false,
         selectedSky: 'Chill gray' // Guardar el skybox gris
-      }, null, 2), 'utf8');
+      });
     } catch (e) { log.warn('No se pudo persistir potato:', e.message); }
 
     return { success: true, message: `Potato mode aplicado (${copied} texturas + skybox gris)` };
@@ -2112,9 +2446,10 @@ ipcMain.handle('apply-font-pack', async (event, fontFile) => {
       return { success: false, message: `Fuente "${fontFile}" no encontrada en ${baseDir}` };
     }
     
-    const robloxFontsPath = getRobloxFontsPath(DEFAULT_PATHS.roblox);
+    // Usar YUMMAN RIVALS para las fuentes
+    const robloxFontsPath = getRobloxFontsPath(DEFAULT_PATHS.yumman);
     if (!robloxFontsPath) {
-      return { success: false, message: 'No se encontró Roblox instalado' };
+      return { success: false, message: 'No se encontró YUMMAN RIVALS instalado' };
     }
     if (!fs.existsSync(robloxFontsPath)) {
       return { success: false, message: `Carpeta de fuentes no existe: ${robloxFontsPath}` };
@@ -2151,7 +2486,7 @@ ipcMain.handle('apply-font-pack', async (event, fontFile) => {
         ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
         : {};
       await fs.ensureDir(YUMMAN_RIVALS_PATH);
-      await fs.writeFile(APP_CONFIG_PATH, JSON.stringify({ ...existing, activeFont: fontFile }, null, 2), 'utf8');
+      await writeAppConfigWithLock({ ...existing, activeFont: fontFile });
     } catch (e) { log.warn('No se pudo persistir fuente:', e.message); }
 
     return { success: true, message: `Fuente "${fontFile}" aplicada (${copied} archivos)` };
@@ -2194,11 +2529,25 @@ ipcMain.handle('restore-fonts', async () => {
     if (!fs.existsSync(backupPath)) {
       return { success: false, message: 'No hay backup de fuentes' };
     }
-    const robloxFontsPath = getRobloxFontsPath(DEFAULT_PATHS.roblox);
+    // Usar YUMMAN RIVALS para las fuentes
+    const robloxFontsPath = getRobloxFontsPath(DEFAULT_PATHS.yumman);
     if (!robloxFontsPath) {
-      return { success: false, message: 'No se encontró Roblox' };
+      return { success: false, message: 'No se encontró YUMMAN RIVALS' };
     }
     await fs.copy(backupPath, robloxFontsPath, { overwrite: true });
+    
+    // Eliminar activeFont de la configuración
+    try {
+      if (fs.existsSync(APP_CONFIG_PATH)) {
+        const existing = JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'));
+        delete existing.activeFont;
+        await writeAppConfigWithLock(existing);
+        log.info('activeFont eliminado de la configuración');
+      }
+    } catch (e) {
+      log.warn('No se pudo actualizar configuración:', e.message);
+    }
+    
     return { success: true, message: 'Fuentes originales restauradas' };
   } catch (error) {
     return { success: false, message: error.message };
@@ -2313,7 +2662,7 @@ ipcMain.handle('open-external', async (event, url) => {
 
 // ─── PERSISTENCIA DE CONFIGURACIÓN DE LA APP ─────────────────────────────────
 // Guarda el estado completo: ejecutor, skybox activo, texturas, fuente, etc.
-const APP_CONFIG_PATH = path.join(YUMMAN_RIVALS_PATH, 'app-config.json');
+// APP_CONFIG_PATH está definido al inicio del archivo (línea 87)
 
 ipcMain.handle('save-app-config', async (event, config) => {
   try {
@@ -2322,7 +2671,7 @@ ipcMain.handle('save-app-config', async (event, config) => {
       ? JSON.parse(await fs.readFile(APP_CONFIG_PATH, 'utf8').catch(() => '{}'))
       : {};
     const merged = { ...existing, ...config, updatedAt: new Date().toISOString() };
-    await fs.writeFile(APP_CONFIG_PATH, JSON.stringify(merged, null, 2), 'utf8');
+    await writeAppConfigWithLock(merged);
     log.info('Configuración guardada:', Object.keys(config).join(', '));
     return { success: true };
   } catch (error) {
@@ -2380,6 +2729,8 @@ ipcMain.handle('launch-extra-instance', async (event, executorId, customPath) =>
 
     // Crear ROBLOX_SingletonEvent ANTES de lanzar Roblox
     // Cuando Roblox intenta crear ese evento y ya existe, no bloquea la segunda instancia
+    // NOTA: El script es hardcoded y no usa input del usuario, por lo que no hay riesgo de command injection
+    // Considerar migrar a Node.js nativo usando librería como 'windows-mutex' para eliminar dependencia de PowerShell
     const mutexScript = '$e=[System.Threading.EventWaitHandle]::new($false,[System.Threading.EventResetMode]::ManualReset,"ROBLOX_SingletonEvent");Start-Sleep -Seconds 15;$e.Dispose()';
 
     spawn('powershell.exe', ['-WindowStyle', 'Hidden', '-NonInteractive', '-Command', mutexScript], {

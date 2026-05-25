@@ -1,25 +1,25 @@
-# 🎮 YUMMAN RIVALS - Roblox Texture Manager
+# YUMMAN RIVALS - Roblox Texture Manager
 
-> Aplicación de escritorio para gestionar texturas y skyboxes personalizados en Roblox Rivals
+Aplicación de escritorio para gestionar texturas y skyboxes personalizados en Roblox Rivals.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Electron](https://img.shields.io/badge/Electron-28.0.0-blue.svg)](https://www.electronjs.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows-blue.svg)](https://www.microsoft.com/windows)
 
-## ✨ Características
+## Características
 
-- 🎨 **25+ Skyboxes personalizados** - Cambia el cielo de Rivals con un click
-- 🖤 **Texturas negras (Ruptic Dark)** - Mejora la visibilidad en el juego
-- 🚀 **Soporte multi-ejecutor** - Compatible con Roblox, Fishtrap y Bloxtrap
-- ⚡ **Método rbx-storage** - Aplicación rápida sin permisos de administrador
-- 🔄 **Auto-updates** - Mantente actualizado automáticamente
-- 📊 **Analytics integrado** - Estadísticas de uso (opcional)
+- **25+ Skyboxes personalizados** - Cambia el cielo de Rivals con un click
+- **Texturas negras (Ruptic Dark)** - Mejora la visibilidad en el juego
+- **Soporte multi-ejecutor** - Compatible con Roblox, Fishtrap y Bloxtrap
+- **Método rbx-storage** - Aplicación rápida sin permisos de administrador
+- **Auto-updates** - Mantente actualizado automáticamente
+- **Analytics integrado** - Estadísticas de uso (opcional)
 
-## 📦 Instalación
+## Instalación
 
 ### Para Usuarios
 
-1. Descarga el instalador desde [Releases](https://github.com/tu-usuario/yumman-rivals/releases)
+1. Descarga el instalador desde [Releases](https://github.com/mmgb5656/yumman-rivals/releases)
 2. Ejecuta `YUMMAN-RIVALS-Setup.exe`
 3. La app descargará los recursos necesarios en la primera ejecución
 4. ¡Listo! Abre la app y empieza a personalizar
@@ -28,14 +28,14 @@
 
 ```bash
 # Clonar el repositorio
-git clone https://github.com/tu-usuario/yumman-rivals.git
+git clone https://github.com/mmgb5656/yumman-rivals.git
 cd yumman-rivals
 
 # Instalar dependencias
 npm install
 
 # Instalar dependencias de la UI
-cd b_W1nO7XZBZq9
+cd ui
 npm install
 cd ..
 
@@ -46,32 +46,31 @@ npm run build:ui
 npm start
 ```
 
-## 🏗️ Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 yumman-rivals/
-├── main.js                    # Proceso principal de Electron
-├── preload.js                 # Script de preload (bridge)
-├── skyConverter.js            # Conversión de imágenes a skybox
-├── rbxStorageManager.js       # Gestor de rbx-storage (método rápido)
-├── atmosphereManager.js       # Gestor de atmósfera
-├── package.json               # Configuración del proyecto
-├── icon.ico                   # Icono de la aplicación
-│
-├── b_W1nO7XZBZq9/            # Interfaz de usuario (Next.js)
-│   ├── app/                   # Páginas de la app
-│   ├── components/            # Componentes React
-│   │   ├── texture-manager/   # Componentes principales
-│   │   └── ui/                # Componentes UI (shadcn)
-│   └── out/                   # Build de producción
-│
-└── resources/                 # Recursos (NO incluidos en repo)
-    ├── skyboxes/              # 25 skyboxes personalizados
-    ├── textures/              # Texturas negras (Ruptic Dark)
-    └── ui-images/             # Previews de skyboxes
+├── src/
+│   ├── main.js              # Proceso principal de Electron
+│   ├── preload.js           # Script de preload (bridge)
+│   ├── skyConverter.js      # Conversión de imágenes a skybox
+│   ├── rbxStorageManager.js # Gestor de rbx-storage (método rápido)
+│   ├── atmosphereManager.js # Gestor de atmósfera
+│   └── updater.js           # Sistema de actualizaciones
+├── ui/                      # Interfaz de usuario (Next.js)
+│   ├── app/                 # Páginas de la app
+│   ├── components/          # Componentes React
+│   │   ├── texture-manager/ # Componentes principales
+│   │   └── ui/              # Componentes UI (shadcn)
+│   └── out/                 # Build de producción
+├── resources/               # Recursos (NO incluidos en repo)
+│   ├── skyboxes/            # 25 skyboxes personalizados
+│   ├── textures/            # Texturas negras (Ruptic Dark)
+│   └── ui-images/           # Previews de skyboxes
+└── package.json             # Configuración del proyecto
 ```
 
-## 🔧 Tecnologías
+## Tecnologías
 
 - **Electron 28** - Framework de aplicaciones de escritorio
 - **Next.js 14** - Framework React para la UI
@@ -80,42 +79,44 @@ yumman-rivals/
 - **Supabase** - Base de datos y analytics
 - **electron-updater** - Sistema de auto-updates
 
-## 🚀 Scripts Disponibles
+## Scripts Disponibles
 
 ```bash
 # Desarrollo
-npm start                  # Ejecutar app en modo desarrollo
-npm run dev               # Ejecutar con hot-reload (UI + Electron)
+npm start              # Ejecutar app en modo desarrollo
+npm run dev            # Ejecutar con hot-reload (UI + Electron)
 
 # Build
-npm run build:ui          # Compilar interfaz Next.js
-npm run build             # Compilar app completa
-npm run build:win         # Build para Windows (NSIS + Portable)
+npm run build:ui       # Compilar interfaz Next.js
+npm run build          # Compilar app completa
+npm run build:win      # Build para Windows (NSIS + Portable)
 
 # Producción
-npm run dist              # Crear instalador de producción
+npm run dist           # Crear instalador de producción
 ```
 
-## 📊 Sistema de Analytics
+## Sistema de Analytics
 
 La app incluye un sistema de analytics opcional que registra:
 
-- ✅ Eventos de uso (skybox aplicado, errores, etc.)
-- ✅ Versión de la app
-- ✅ Sistema operativo
-- ❌ **NO recopila información personal**
-- ❌ **NO recopila datos sensibles**
+- Eventos de uso (skybox aplicado, errores, etc.)
+- Versión de la app
+- Sistema operativo
+
+**NO recopila:**
+- Información personal
+- Datos sensibles
 
 Los datos se almacenan en Supabase y son completamente anónimos (ID basado en hardware).
 
-## 🔐 Privacidad
+## Privacidad
 
 - **ID de usuario**: Hash anónimo basado en hardware (no reversible)
 - **Datos recopilados**: Solo eventos de uso y estadísticas técnicas
 - **Sin tracking**: No se rastrea navegación ni comportamiento personal
 - **Opt-out**: Puedes desactivar analytics en la configuración
 
-## 🛠️ Desarrollo
+## Desarrollo
 
 ### Requisitos
 
@@ -142,10 +143,10 @@ SUPABASE_ANON_KEY=tu-api-key-publica
 Los recursos (skyboxes, texturas) **NO están incluidos** en el repositorio por su tamaño (170 MB).
 
 Para desarrollo:
-1. Descarga los recursos desde [Releases](https://github.com/tu-usuario/yumman-rivals/releases)
+1. Descarga los recursos desde [Releases](https://github.com/mmgb5656/yumman-rivals/releases)
 2. Extrae en la carpeta `resources/`
 
-## 📝 Cómo Funciona
+## Cómo Funciona
 
 ### Método Tradicional (Antiguo)
 ```
@@ -158,12 +159,12 @@ Copia archivos hash → C:\Users\[USER]\AppData\Local\Roblox\rbx-storage\
 ```
 
 El método rbx-storage es:
-- ✅ Más rápido
-- ✅ No requiere permisos de administrador
-- ✅ Funciona en todas las versiones de Roblox
-- ✅ Menos propenso a ser bloqueado por antivirus
+- Más rápido
+- No requiere permisos de administrador
+- Funciona en todas las versiones de Roblox
+- Menos propenso a ser bloqueado por antivirus
 
-## 🤝 Contribuir
+## Contribuir
 
 Las contribuciones son bienvenidas! Por favor:
 
@@ -173,28 +174,28 @@ Las contribuciones son bienvenidas! Por favor:
 4. Push a la rama (`git push origin feature/AmazingFeature`)
 5. Abre un Pull Request
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 Este proyecto es una herramienta de personalización para Roblox y **NO está afiliado con Roblox Corporation**.
 
 El uso de texturas personalizadas puede estar sujeto a los Términos de Servicio de Roblox. Úsalo bajo tu propio riesgo.
 
-## 🙏 Créditos
+## Créditos
 
 - **Skyboxes**: Colección de la comunidad
 - **Ruptic Dark**: Texturas negras originales
 - **UI Components**: [shadcn/ui](https://ui.shadcn.com/)
 - **Icons**: [Lucide Icons](https://lucide.dev/)
 
-## 📞 Soporte
+## Soporte
 
-- 🐛 **Reportar bugs**: [Issues](https://github.com/tu-usuario/yumman-rivals/issues)
-- 💬 **Discusiones**: [Discussions](https://github.com/tu-usuario/yumman-rivals/discussions)
-- ☕ **Donar**: [Ko-fi](https://ko-fi.com/yumman)
+- **Reportar bugs**: [Issues](https://github.com/mmgb5656/yumman-rivals/issues)
+- **Discusiones**: [Discussions](https://github.com/mmgb5656/yumman-rivals/discussions)
+- **Donar**: [Ko-fi](https://ko-fi.com/yumman)
 
 ---
 

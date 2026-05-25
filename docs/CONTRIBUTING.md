@@ -1,18 +1,18 @@
-# 🤝 Contribuir a YUMMAN RIVALS
+# Contribuir a YUMMAN RIVALS
 
-¡Gracias por tu interés en contribuir! Este documento te guiará en el proceso.
+Gracias por tu interés en contribuir! Este documento te guiará en el proceso.
 
-## 📋 Código de Conducta
+## Código de Conducta
 
 - Sé respetuoso con otros contribuidores
 - Acepta críticas constructivas
 - Enfócate en lo mejor para el proyecto
 
-## 🚀 Cómo Contribuir
+## Cómo Contribuir
 
 ### Reportar Bugs
 
-1. Verifica que el bug no haya sido reportado antes en [Issues](https://github.com/tu-usuario/yumman-rivals/issues)
+1. Verifica que el bug no haya sido reportado antes en [Issues](https://github.com/mmgb5656/yumman-rivals/issues)
 2. Crea un nuevo issue con:
    - Título descriptivo
    - Pasos para reproducir
@@ -46,7 +46,7 @@
    ```
 6. **Abre un Pull Request** en GitHub
 
-## 📝 Guías de Estilo
+## Guías de Estilo
 
 ### Commits
 
@@ -75,7 +75,7 @@ docs: actualizar README con instrucciones de instalación
 - Async/await en lugar de callbacks
 
 ```javascript
-// ✅ Bien
+// Bien
 async function applySkybox(skyboxName) {
   const skyboxPath = path.join(SKYBOXES_PATH, skyboxName);
   
@@ -87,7 +87,7 @@ async function applySkybox(skyboxName) {
   return await rbxStorage.applySkybox(skyboxPath);
 }
 
-// ❌ Mal
+// Mal
 function applySkybox(name, callback) {
   var p = path.join(SKYBOXES_PATH, name);
   fs.exists(p, function(exists) {
@@ -104,7 +104,7 @@ function applySkybox(name, callback) {
 - Nombres de componentes en PascalCase
 
 ```typescript
-// ✅ Bien
+// Bien
 interface SkyboxCardProps {
   name: string;
   imageUrl: string;
@@ -121,7 +121,7 @@ export function SkyboxCard({ name, imageUrl, onApply }: SkyboxCardProps) {
 }
 ```
 
-## 🧪 Testing
+## Testing
 
 Antes de hacer un PR:
 
@@ -140,24 +140,25 @@ Antes de hacer un PR:
    npm run build:win
    ```
 
-## 📁 Estructura de Archivos
+## Estructura de Archivos
 
 ```
 yumman-rivals/
-├── main.js              # Proceso principal (Electron)
-├── preload.js           # Bridge seguro
-├── *.js                 # Módulos auxiliares
+├── src/              # Proceso principal (Electron)
+│   ├── main.js
+│   ├── preload.js
+│   └── *.js          # Módulos auxiliares
 │
-├── b_W1nO7XZBZq9/      # UI (Next.js)
-│   ├── app/             # Páginas
-│   ├── components/      # Componentes React
-│   └── lib/             # Utilidades
+├── ui/               # UI (Next.js)
+│   ├── app/          # Páginas
+│   ├── components/   # Componentes React
+│   └── lib/          # Utilidades
 │
-├── docs/                # Documentación
-└── resources/           # Assets (no en repo)
+├── docs/             # Documentación
+└── resources/        # Assets (no en repo)
 ```
 
-## 🎨 Agregar Nuevos Skyboxes
+## Agregar Nuevos Skyboxes
 
 1. Crea una carpeta en `resources/skyboxes/all-skyboxes/ALL SKYBOXES/`
 2. Incluye los 6 archivos `.tex`:
@@ -170,7 +171,7 @@ yumman-rivals/
 3. Agrega un screenshot: `! SCREENSHOT.png`
 4. Crea la carpeta `assets/` con archivos hash (ejecuta `CREAR-ASSETS-SKYBOXES.bat`)
 
-## 🐛 Debugging
+## Debugging
 
 ### Logs de Electron
 
@@ -189,7 +190,7 @@ console.log('Debug info:', data);
 mainWindow.webContents.openDevTools();
 ```
 
-## 📦 Build y Release
+## Build y Release
 
 Solo los maintainers pueden hacer releases:
 
@@ -204,13 +205,13 @@ Solo los maintainers pueden hacer releases:
    - Crea release
    - Sube instaladores
 
-## ❓ Preguntas
+## Preguntas
 
 Si tienes dudas:
-- Abre un [Discussion](https://github.com/tu-usuario/yumman-rivals/discussions)
+- Abre un [Discussion](https://github.com/mmgb5656/yumman-rivals/discussions)
 - Pregunta en el issue relacionado
 - Contacta a los maintainers
 
-## 🙏 Gracias
+## Gracias
 
-Cada contribución, por pequeña que sea, es valiosa. ¡Gracias por hacer YUMMAN RIVALS mejor!
+Cada contribución, por pequeña que sea, es valiosa. Gracias por hacer YUMMAN RIVALS mejor!

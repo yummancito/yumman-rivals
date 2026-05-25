@@ -1,10 +1,10 @@
-# 🔍 CÓMO FUNCIONAN LAS TEXTURAS DE ROBLOX
+# CÓMO FUNCIONAN LAS TEXTURAS DE ROBLOX
 
-## 📁 Estructura de Archivos
+## Estructura de Archivos
 
 ### Roblox guarda las texturas en 2 lugares:
 
-#### 1. **Texturas de Materiales** (Grass, Wood, Metal, etc.)
+#### 1. Texturas de Materiales (Grass, Wood, Metal, etc.)
 ```
 C:\Program Files (x86)\Roblox\Versions\version-XXXXX\content\textures\
 ├── grass/
@@ -17,7 +17,7 @@ C:\Program Files (x86)\Roblox\Versions\version-XXXXX\content\textures\
 └── ... (20+ materiales)
 ```
 
-#### 2. **Skybox (Cielo)** - Método Antiguo
+#### 2. Skybox (Cielo) - Método Antiguo
 ```
 C:\Program Files (x86)\Roblox\Versions\version-XXXXX\content\textures\sky\
 ├── sky512_ft.tex  (Front - Frente)
@@ -28,7 +28,7 @@ C:\Program Files (x86)\Roblox\Versions\version-XXXXX\content\textures\sky\
 └── sky512_dn.tex  (Down - Abajo)
 ```
 
-#### 3. **Skybox (Cielo)** - Método Nuevo (rbx-storage)
+#### 3. Skybox (Cielo) - Método Nuevo (rbx-storage)
 ```
 %LOCALAPPDATA%\Roblox\rbx-storage\
 ├── a5/
@@ -46,7 +46,7 @@ C:\Program Files (x86)\Roblox\Versions\version-XXXXX\content\textures\sky\
 
 ---
 
-## 🎨 Cómo Funciona el Cambio de Texturas
+## Cómo Funciona el Cambio de Texturas
 
 ### Método 1: Texturas de Materiales (Ruptic Dark)
 
@@ -113,10 +113,10 @@ fs.copy(
 Usa el sistema de caché de Roblox (`rbx-storage`) para cambiar el cielo.
 
 **Por qué este método:**
-- ✅ Más rápido
-- ✅ No requiere permisos de administrador
-- ✅ Funciona incluso si Roblox está abierto
-- ✅ Roblox lo carga automáticamente
+- Más rápido
+- No requiere permisos de administrador
+- Funciona incluso si Roblox está abierto
+- Roblox lo carga automáticamente
 
 **Proceso del move.bat:**
 ```batch
@@ -143,7 +143,7 @@ Para que Roblox no sobrescriba los archivos cuando se actualice.
 
 ---
 
-## 🌅 Cómo Funciona el Cielo Personalizado
+## Cómo Funciona el Cielo Personalizado
 
 ### Proceso de Conversión:
 
@@ -178,7 +178,7 @@ fs.copy(
 
 ---
 
-## 📊 Comparación de Métodos
+## Comparación de Métodos
 
 | Método | Ubicación | Ventajas | Desventajas |
 |--------|-----------|----------|-------------|
@@ -188,7 +188,7 @@ fs.copy(
 
 ---
 
-## 🔧 Implementación en YUMMAN RIVALS
+## Implementación en YUMMAN RIVALS
 
 ### Función: Aplicar Texturas Oscuras
 ```javascript
@@ -238,7 +238,7 @@ async function restoreOriginal(texturePath) {
 
 ---
 
-## 🎯 Presets Disponibles
+## Presets Disponibles
 
 ### Ruptic Dark
 - **Ubicación**: `Ruptic Dark/Ruptic Dark/`
@@ -266,11 +266,11 @@ async function restoreOriginal(texturePath) {
 
 ---
 
-## 🔒 Seguridad
+## Seguridad
 
 ### ¿Es seguro modificar estos archivos?
 
-**✅ SÍ, es seguro porque:**
+**SÍ, es seguro porque:**
 1. Solo modificas archivos locales (tu PC)
 2. No modificas el cliente de Roblox (el .exe)
 3. No inyectas código
@@ -279,7 +279,7 @@ async function restoreOriginal(texturePath) {
 
 ### ¿Puede causar ban?
 
-**❌ NO, porque:**
+**NO, porque:**
 1. Solo cambias texturas visuales
 2. No das ventajas competitivas
 3. No modificas el gameplay
@@ -296,7 +296,7 @@ await fs.copy(texturePath, backupPath);
 
 ---
 
-## 💡 Tips y Trucos
+## Tips y Trucos
 
 ### 1. Cierra Roblox antes de aplicar texturas
 - Roblox carga texturas al iniciar
@@ -319,7 +319,7 @@ await fs.copy(texturePath, backupPath);
 
 ---
 
-## 🚀 Mejoras Futuras
+## Mejoras Futuras
 
 ### 1. Soporte para rbx-storage
 Implementar el método de move.bat en la app:
@@ -351,7 +351,7 @@ async function applyRbxStorageSky(skyboxFiles) {
 
 ---
 
-## 📝 Resumen
+## Resumen
 
 ### Texturas de Materiales:
 - **Ubicación**: `content/textures/[material]/`
@@ -374,4 +374,4 @@ async function applyRbxStorageSky(skyboxFiles) {
 
 ---
 
-**¡Ahora entiendes cómo funciona todo! 🎉**
+¡Ahora entiendes cómo funciona todo!
