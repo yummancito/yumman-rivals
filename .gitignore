@@ -2,43 +2,67 @@
 .env
 .env.local
 .env.production
+.env.development
 backend/.env
 
-# Large files
-resources.zip
-*.zip
-*.rar
-*.7z
-
-# Roblox files (too large for GitHub)
-resources/Roblox/
-
-# Node modules
+# Dependencies
 node_modules/
 ui-source/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Build outputs
 dist/
 ui-source/.next/
 ui-source/out/
+build/
+out/
 
 # OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # Logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+logs/
+*.log.*
 
 # Temporary files
 *.tmp
 *.temp
 .cache/
+.parcel-cache/
+
+# Electron binaries
+*.exe
+*.msi
+*.dmg
+*.app
+
+# Archives
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+
+# Backup files
+*-backup.js
+*-backup.ts
+*-backup.tsx
+*.bak
+*.backup
