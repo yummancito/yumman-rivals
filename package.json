@@ -1,0 +1,126 @@
+{
+  "name": "yumman-rivals",
+  "version": "2.0.1",
+  "description": "YUMMAN RIVALS - Roblox Texture Manager",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev:electron": "cross-env NODE_ENV=development electron .",
+    "dev:backend": "node backend/server.js",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:electron\"",
+    "build:ui": "cd ui-source && npm run build",
+    "build": "npm run build:ui && electron-builder",
+    "build:win": "npm run build:ui && electron-builder --win --x64",
+    "build:portable": "npm run build:ui && electron-builder --win portable",
+    "generate-manifest": "node scripts/generate-manifest.js"
+  },
+  "keywords": [
+    "roblox",
+    "textures",
+    "electron",
+    "yumman",
+    "rivals"
+  ],
+  "author": "YUMMAN",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.0.0",
+    "cross-env": "^7.0.3",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.0.0",
+    "javascript-obfuscator": "^4.2.2",
+    "wait-on": "^7.0.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "adm-zip": "^0.5.17",
+    "axios": "^1.15.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.8.3",
+    "express": "^4.18.2",
+    "fs-extra": "^11.2.0",
+    "jimp": "^0.22.0",
+    "node-fetch": "^2.7.0",
+    "node-forge": "^1.4.0",
+    "semver": "^7.6.0"
+  },
+  "build": {
+    "appId": "com.yumman.rivals",
+    "productName": "YUMMAN RIVALS",
+    "publish": {
+      "provider": "generic",
+      "url": "${R2_PUBLIC_URL}/app/v${version}/"
+    },
+    "files": [
+      "ui-source/out/**/*",
+      "src/**/*",
+      "icon.ico",
+      "resources/move-silent.bat",
+      "resources/RobloxPlayerInstaller.exe",
+      "resources/potatomode.json",
+      "!resources/**/*",
+      "!ui-source/out/skyboxes/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/move-silent.bat",
+        "to": "resources/move-silent.bat"
+      },
+      {
+        "from": "resources/RobloxPlayerInstaller.exe",
+        "to": "resources/RobloxPlayerInstaller.exe"
+      },
+      {
+        "from": "resources/potatomode.json",
+        "to": "resources/potatomode.json"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon.ico",
+      "requestedExecutionLevel": "requireAdministrator",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "YUMMAN RIVALS",
+      "license": "LICENSE.txt",
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico",
+      "deleteAppDataOnUninstall": false,
+      "displayLanguageSelector": false,
+      "multiLanguageInstaller": false,
+      "language": "1034",
+      "warningsAsErrors": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "runAfterFinish": true,
+      "menuCategory": true,
+      "include": "build/installer-script.nsh"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
+    },
+    "compression": "maximum",
+    "asar": true
+  }
+}

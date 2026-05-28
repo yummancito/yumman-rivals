@@ -1,0 +1,56 @@
+{
+  "skyboxes": {
+    "root": "resources/skyboxes/all-skyboxes/ALL SKYBOXES",
+    "previews": "resources/ui-images",
+    "list": [
+      "Night",
+      "Aurora",
+      "Moonlight",
+      "Space Blue",
+      "Universe",
+      "Pink Sunrise",
+      "Beautiful",
+      "NeonSky",
+      "NeonSky2",
+      "Hades",
+      "Spooky",
+      "Goodnight",
+      "Overcast",
+      "Hazy",
+      "Blue",
+      "Light Blue",
+      "Cyan",
+      "Orange",
+      "Red",
+      "Chill pink",
+      "Light pink",
+      "Chill gray",
+      "Pandora",
+      "ChromaKey",
+      "Emo"
+    ]
+  },
+  "textures": {
+    "rupticDark": "resources/textures/ruptic-dark/Ruptic Dark",
+    "materials": [
+      "grass",
+      "wood",
+      "metal",
+      "concrete",
+      "brick",
+      "sand",
+      "granite",
+      "marble",
+      "slate",
+      "cobblestone",
+      "fabric",
+      "woodplanks",
+      "rust",
+      "plastic"
+    ]
+  },
+  "ui": {
+    "build": "b_W1nO7XZBZq9/out",
+    "images": "resources/ui-images"
+  }
+}

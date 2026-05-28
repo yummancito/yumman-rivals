@@ -1,0 +1,50 @@
+YUMMAN RIVALS - Licencia de Uso
+
+Copyright (c) 2026 YUMMAN
+
+TÉRMINOS Y CONDICIONES DE USO:
+
+1. USO PERSONAL
+   Este software es proporcionado para uso personal y no comercial.
+   Puedes usar YUMMAN RIVALS para modificar texturas en tu cliente de Roblox.
+
+2. PROHIBICIONES
+   Está PROHIBIDO:
+   - Descompilar, desensamblar o realizar ingeniería inversa del software
+   - Extraer, copiar o distribuir los recursos incluidos (texturas, skyboxes)
+   - Modificar, adaptar o crear trabajos derivados del software
+   - Vender, alquilar, arrendar o sublicenciar el software
+   - Eliminar o modificar avisos de derechos de autor o marcas
+
+3. DISTRIBUCIÓN
+   NO está permitido redistribuir este software sin autorización expresa.
+   Para compartir YUMMAN RIVALS, dirige a los usuarios al canal oficial.
+
+4. RECURSOS PROTEGIDOS
+   Todos los recursos incluidos (texturas, skyboxes, imágenes) están protegidos
+   por derechos de autor y son propiedad exclusiva de YUMMAN.
+   La extracción o uso no autorizado de estos recursos está prohibida.
+
+5. GARANTÍA
+   Este software se proporciona "TAL CUAL", sin garantías de ningún tipo.
+   El autor no se hace responsable de daños derivados del uso del software.
+
+6. USO DE ROBLOX
+   Este software modifica archivos locales de Roblox. El uso de modificaciones
+   puede violar los Términos de Servicio de Roblox. Úsalo bajo tu propio riesgo.
+
+7. ACTUALIZACIONES
+   Las actualizaciones del software solo están disponibles a través del
+   canal oficial. No descargues versiones de fuentes no verificadas.
+
+8. TERMINACIÓN
+   Esta licencia es efectiva hasta que sea terminada. Tus derechos bajo esta
+   licencia terminarán automáticamente si violas cualquiera de estos términos.
+
+Al instalar y usar YUMMAN RIVALS, aceptas estos términos y condiciones.
+
+Para soporte o preguntas:
+Discord: https://discord.com/invite/EVWqd5swAt
+Roblox: https://www.roblox.com/es/users/4018950771/profile
+
+© 2026 YUMMAN. Todos los derechos reservados.

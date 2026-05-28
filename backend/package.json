@@ -1,0 +1,18 @@
+{
+  "name": "yumman-rivals-backend",
+  "version": "1.0.0",
+  "description": "Backend para YUMMAN RIVALS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "@supabase/supabase-js": "^2.38.0",
+    "dotenv": "^16.3.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
