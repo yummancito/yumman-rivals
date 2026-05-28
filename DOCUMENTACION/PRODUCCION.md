@@ -136,11 +136,14 @@ Los siguientes archivos deben estar disponibles en producción:
 
 ## Descarga de Recursos
 
-En producción, los recursos se descargan automáticamente desde:
+En producción, los recursos se descargan automáticamente desde Cloudflare R2:
 
 ```
-https://github.com/mmgb5656/yumman-rivals/releases/download/v{version}-resources/yumman-rivals-resources-v{version}.zip
+https://pub-6fe6ab5451da4b06907a0496a047fd83.r2.dev/manifest.json
+https://pub-6fe6ab5451da4b06907a0496a047fd83.r2.dev/resources.zip
 ```
+
+El sistema usa `manifest.json` para verificar versiones y descargar `resources.zip` automáticamente.
 
 El ZIP contiene:
 - skyboxes/ (25 skyboxes)
@@ -148,6 +151,11 @@ El ZIP contiene:
 - fonts/ (Minecraft.ttf)
 
 Tamaño aproximado: 272 MB
+
+**Notas:**
+- Cloudflare R2 se usa en lugar de GitHub Releases para mejor rendimiento
+- El manifest.json contiene versiones de app y recursos
+- Sistema de actualización automático con verificación SHA256
 
 ## Verificación de Producción
 
