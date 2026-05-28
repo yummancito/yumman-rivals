@@ -1,8 +1,4 @@
-# 🎮 YUMMAN RIVALS
-
-<div align="center">
-
-![YUMMAN RIVALS Logo](icon.ico)
+# YUMMAN RIVALS
 
 **Launcher personalizado para Roblox Rivals con skyboxes, texturas y fuentes personalizadas**
 
@@ -10,81 +6,62 @@
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://www.microsoft.com/windows)
 [![Version](https://img.shields.io/badge/version-2.0.1-green.svg)](package.json)
 
-</div>
+---
+
+## Table of Contents
+
+- [Description](#description)
+- [Features](#features)
+- [Project Structure](#project-structure)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Development](#development)
+- [Build](#build)
+- [Contribution](#contribution)
+- [License](#license)
 
 ---
 
-## 📋 Tabla de Contenidos
+## Description
 
-- [📖 Descripción](#-descripción)
-- [✨ Características](#-características)
-- [🖼️ Capturas de Pantalla](#️-capturas-de-pantalla)
-- [📁 Estructura del Proyecto](#-estructura-del-proyecto)
-- [🚀 Instalación](#-instalación)
-- [⚙️ Configuración](#️-configuración)
-- [🔧 Uso](#-uso)
-- [🛠️ Desarrollo](#️-desarrollo)
-- [📦 Build](#-build)
-- [🤝 Contribución](#-contribución)
-- [📄 Licencia](#-licencia)
+YUMMAN RIVALS is a custom launcher for the Roblox Rivals game that allows users to personalize their experience with custom skyboxes, dark textures, custom fonts, and more. The application is built with Electron, Next.js, and a Node.js backend with Supabase.
 
 ---
 
-## 📖 Descripción
+## Features
 
-YUMMAN RIVALS es un launcher personalizado para el juego Roblox Rivals que permite a los usuarios personalizar su experiencia con skyboxes personalizados, texturas oscuras, fuentes personalizadas y más. La aplicación está construida con Electron, Next.js y un backend en Node.js con Supabase.
+### Custom Skyboxes
+- Over 20 unique skyboxes available
+- One-click instant application
+- Support for user custom skyboxes
+- Real-time preview
 
----
+### Dark Textures
+- Potato mode for better performance
+- Dark textures for visual fatigue reduction
+- Easy restoration of original textures
 
-## ✨ Características
+### Custom Fonts
+- Multiple Minecraft fonts available
+- Automatic application to Roblox
+- One-click restoration
 
-### 🌌 Skyboxes Personalizados
-- Más de 20 skyboxes únicos disponibles
-- Aplicación instantánea con un clic
-- Soporte para skyboxes personalizados del usuario
-- Vista previa en tiempo real
-
-### 🎨 Texturas Oscuras
-- Modo potato para mejor rendimiento
-- Texturas oscuras para reducción de fatiga visual
-- Restauración fácil de texturas originales
-
-### 🔤 Fuentes Personalizadas
-- Múltiples fuentes de Minecraft disponibles
-- Aplicación automática a Roblox
-- Restauración con un clic
-
-### 🚩 Flags y Configuraciones
-- Modo Potato
+### Flags and Settings
+- Potato Mode
 - Low Latency
 - Dark Textures
 - Potato Textures
 
-### 👤 Sistema de Perfil
-- Integración con API de Roblox
-- Estadísticas de uso
-- Avatar y nombre de usuario
-- Sistema de presets en la nube
+### Profile System
+- Roblox API integration
+- Usage statistics
+- Avatar and username display
+- Cloud-based preset system
 
 ---
 
-## 🖼️ Capturas de Pantalla
-
-### Launcher Principal
-![Launcher Principal](images/launcher.png)
-
-### Selector de Skyboxes
-![Selector de Skyboxes](images/skyboxes.png)
-
-### Configuración de Texturas
-![Configuración de Texturas](images/textures.png)
-
-### Perfil de Usuario
-![Perfil de Usuario](images/profile.png)
-
----
-
-## 📁 Estructura del Proyecto
+## Project Structure
 
 ```
 yumman-rivals-app-only/
@@ -168,7 +145,7 @@ npm install
 cd ..
 ```
 
-3. **Configurar variables de entorno**
+3. onfigulrtrovariables de entorno**
 ```bash
 # Copiar el archivo de ejemplo
 cp backend/.env.example backend/.env
@@ -218,7 +195,7 @@ R2_ACCOUNT_ID=your_r2_account_id_here
 R2_ACCESS_KEY_ID=your_r2_access_key_id_here
 R2_SECRET_ACCESS_KEY=your_r2_secret_access_key_here
 R2_BUCKET_NAME=your_r2_bucket_name_here
-R2_ENDPOINT=your_r2_endpoint_here
+R2_POINT=yout_o2_endpoint_here
 R2_PUBLIC_URL=your_r2_public_url_here
 ```
 
@@ -253,7 +230,7 @@ R2_PUBLIC_URL=your_r2_public_url_here
 1. Ve a la sección de Texturas
 2. Activa "Texturas Oscuras" o "Modo Potato"
 3. Haz clic en "Aplicar"
-4. Las texturas se aplicarán a tu instalación de Roblox
+4.  tagexturas se aplicarán a tu instalación de Roblox
 
 ### Cambiar Fuente
 
@@ -347,7 +324,7 @@ Este proyecto está licenciado bajo la Licencia MIT - ver el archivo [LICENSE.tx
 
 ---
 
-## 🙏 Agradecimientos
+## Acknowledgments
 
 - [Electron](https://www.electronjs.org/) - Framework para aplicaciones de escritorio
 - [Next.js](https://nextjs.org/) - Framework React
@@ -369,8 +346,8 @@ Si encuentras algún bug o necesitas ayuda:
 
 <div align="center">
 
-**Hecho con ❤️ por YUMMAN**
+**Created by YUMMAN**
 
-[⬆ Volver al inicio](#-yumman-rivals)
+[Back to top](#yumman-rivals)
 
 </div>
